@@ -5,6 +5,8 @@
         + Fix cpu config values for gcc_cmpxchg to include atomic/gcc_x86.o on amd64.
           Harmonized the cpu config keys, no $platform_has_$feature keys anymore, just
           HAS_$PLATFORM_$feature. #1173
+        + --optimize: Replace -O2 from perl5 with -O3 on clang or gcc. GH #1185
+          5% faster
     - Documentation
     - Tests
     - Community
