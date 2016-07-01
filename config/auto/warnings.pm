@@ -1,4 +1,4 @@
-# Copyright (C) 2007-2010, Parrot Foundation.
+# Copyright (C) 2007-2011, Parrot Foundation.
 
 =head1 NAME
 
@@ -101,6 +101,7 @@ sub _init {
     my @gcc_or_gpp = qw(
         -falign-functions=16
         -funit-at-a-time
+        -fexcess-precision=standard
         -maccumulate-outgoing-args
         -W
         -Wall
@@ -148,6 +149,7 @@ sub _init {
         -Wunknown-pragmas
         -Wvariadic-macros
         -Wwrite-strings
+        -Wstack-usage=500
     );
 
     $gcc->{'basic'} = [ @gcc_or_gpp ];
@@ -179,8 +181,9 @@ sub _init {
         -Wdeprecated-declarations
         -Wno-format-extra-args
         -Wno-import
-        -Wsuggest-attribute=pure
         -Wsuggest-attribute=const
+        -Wsuggest-attribute=noreturn
+        -Wsuggest-attribute=pure
         -Wunreachable-code
         -Wunused
         -Wunused-function
@@ -233,6 +236,7 @@ sub _init {
         -Wformat
         -Wformat-security
         -Wmain
+        -Wmaybe-uninitialized
         -Wmissing-declarations
         -Wmissing-prototypes
         -Wpointer-arith

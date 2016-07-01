@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2010, Parrot Foundation.
+Copyright (C) 2001-2011, Parrot Foundation.
 
 =head1 NAME
 
@@ -44,13 +44,19 @@ A separate compacting garbage collector is used to keep track of them.
 
 =item F<src/gc/gc_ms2.c>
 
+=item F<src/gc/gc_gms.c>
+
 =item F<src/gc/gc_inf.c>
 
 These files are the individual GC cores which implement the primary tracing
-and sweeping logic. gc_ms.c is the mark & sweep collector core which is used in
-Parrot by default. gc_ms2.c implements a generational mark & sweep allocator.
-gc_inf.c implements an "infinite" allocator which never frees any memory.  The
-infinite allocator is not recommended except for debugging.
+and sweeping logic.
+gc_ms.c is the mark & sweep collector core,
+gc_ms2.c implements a generational mark & sweep allocator,
+gc_gms.c implements a generational, non-compacting, mark and sweep allocator,
+gc_inf.c implements an "infinite" allocator which never frees any memory.
+The infinite allocator is not recommended except for debugging.
+The default is currently gc_ms2.c but is expected to move to gc_gms.c
+after RELEASE_3_3_0.
 
 =item F<src/gc/mark_sweep.c>
 
@@ -85,6 +91,7 @@ implementation, and malloc wrappers for various purposes. These are unused.
 #include "parrot/parrot.h"
 #include "parrot/gc_api.h"
 #include "gc_private.h"
+#include "fixed_allocator.h"
 
 /* HEADERIZER HFILE: include/parrot/gc_api.h */
 
@@ -212,6 +219,12 @@ Parrot_gc_initialize(PARROT_INTERP, ARGIN(Parrot_GC_Init_Args *args))
         break;
       case GMS:
         Parrot_gc_gms_init(interp, args);
+        break;
+      default:
+        /* add a default to supress compiler warnings
+         * should never get here as the above if statemewnt
+         * would catch any invalid GC types and exit
+         */
         break;
     }
 
@@ -538,14 +551,16 @@ Parrot_gc_allocate_pmc_attributes(PARROT_INTERP, ARGMOD(PMC *pmc))
 
 =item C<void Parrot_gc_free_pmc_attributes(PARROT_INTERP, PMC *pmc)>
 
-Deallocates an attibutes structure from a PMC if it has the auto_attrs
+Deallocates an attributes structure from a PMC if it has the auto_attrs
 flag set.
+
+=cut
 
 */
 
 PARROT_EXPORT
 void
-Parrot_gc_free_pmc_attributes(PARROT_INTERP, ARGMOD(PMC *pmc))
+Parrot_gc_free_pmc_attributes(PARROT_INTERP, ARGFREE(PMC *pmc))
 {
     ASSERT_ARGS(Parrot_gc_free_pmc_attributes)
     interp->gc_sys->free_pmc_attributes(interp, pmc);
@@ -558,6 +573,8 @@ size)>
 
 Allocates a fixed-size chunk of memory for use. This memory is not manually
 managed and needs to be freed with C<Parrot_gc_free_fixed_size_storage>
+
+=cut
 
 */
 
@@ -577,6 +594,8 @@ Parrot_gc_allocate_fixed_size_storage(PARROT_INTERP, size_t size)
 
 Manually deallocates fixed size storage allocated with
 C<Parrot_gc_allocate_fixed_size_storage>
+
+=cut
 
 */
 
@@ -606,6 +625,8 @@ Parrot_gc_reallocate_memory_chunk_with_interior_pointers(PARROT_INTERP, void
 *data, size_t newsize, size_t oldsize)>
 
 TODO Write docu.
+
+=cut
 
 */
 
@@ -675,6 +696,7 @@ Parrot_gc_mark_and_sweep(PARROT_INTERP, UINTVAL flags)
 {
     ASSERT_ARGS(Parrot_gc_mark_and_sweep)
     interp->gc_sys->do_gc_mark(interp, flags);
+
 }
 
 /*
@@ -827,6 +849,8 @@ Return the number of memory allocations made since the last collection run.
 
 Returns the number of PMCs that are marked as needing timely destruction.
 
+=cut
+
 */
 
 PARROT_EXPORT
@@ -961,6 +985,7 @@ Parrot_block_GC_sweep(PARROT_INTERP)
     ASSERT_ARGS(Parrot_block_GC_sweep)
     if (interp->gc_sys->block_sweep)
         interp->gc_sys->block_sweep(interp);
+
 }
 
 PARROT_EXPORT

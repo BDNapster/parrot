@@ -1,11 +1,11 @@
 # See tools/dev/install_files.pl for documentation on the
 # format of this file.
 # Please re-sort this file after *EVERY* modification
-blib/lib/libparrot.3.1.0.dylib                   [main]lib
+blib/lib/libparrot.3.7.0.dylib                   [main]lib
 blib/lib/libparrot.a                             [main]lib
 blib/lib/libparrot.dylib                         [main]lib
 blib/lib/libparrot.so                            [main]lib
-blib/lib/libparrot.so.3.1.0                      [main]lib
+blib/lib/libparrot.so.3.7.0                      [main]lib
 compilers/data_json/data_json.pbc                [data_json]
 config/gen/call_list/opengl.in                   []
 docs/ops/bit.pod                                 [doc]
@@ -70,6 +70,7 @@ include/pmc/pmc_imageiofreeze.h                  [devel]include
 include/pmc/pmc_imageiosize.h                    [devel]include
 include/pmc/pmc_imageiostrings.h                 [devel]include
 include/pmc/pmc_imageiothaw.h                    [devel]include
+include/pmc/pmc_imccompiler.h                    [devel]include
 include/pmc/pmc_integer.h                        [devel]include
 include/pmc/pmc_iterator.h                       [devel]include
 include/pmc/pmc_key.h                            [devel]include
@@ -99,6 +100,7 @@ include/pmc/pmc_packfilefixuptable.h             [devel]include
 include/pmc/pmc_packfileopmap.h                  [devel]include
 include/pmc/pmc_packfilerawsegment.h             [devel]include
 include/pmc/pmc_packfilesegment.h                [devel]include
+include/pmc/pmc_packfileview.h                   [devel]include
 include/pmc/pmc_parrotinterpreter.h              [devel]include
 include/pmc/pmc_parrotlibrary.h                  [devel]include
 include/pmc/pmc_parrotthread.h                   [devel]include
@@ -141,8 +143,6 @@ installable_parrot-prove.exe                     [main]bin
 installable_parrot.exe                           [main]bin
 installable_parrot_config                        [main]bin
 installable_parrot_config.exe                    [main]bin
-installable_parrot_debugger                      [main]bin
-installable_parrot_debugger.exe                  [main]bin
 installable_parrot_nci_thunk_gen                 [main]bin
 installable_pbc_disassemble                      [main]bin
 installable_pbc_disassemble.exe                  [main]bin
@@ -152,12 +152,13 @@ installable_pbc_merge                            [main]bin
 installable_pbc_merge.exe                        [main]bin
 installable_pbc_to_exe                           [main]bin
 installable_pbc_to_exe.exe                       [main]bin
+installable_winxed                               [main]bin
+installable_winxed.exe                           [main]bin
 lib/Parrot/Config/Generated.pm                   [devel]lib
 lib/Parrot/PMC.pm                                [devel]lib
 lib/Parrot/Pmc2c/PCCMETHOD_BITS.pm               [devel]lib
 libparrot.dll                                    [main]bin
 libparrot.lib                                    [main]bin
-parrot.pc                                        [main]pkgconfig
 runtime/parrot/dynext/bit_ops.bundle             [library]
 runtime/parrot/dynext/bit_ops.dll                [library]
 runtime/parrot/dynext/bit_ops.dylib              [library]
@@ -206,6 +207,10 @@ runtime/parrot/dynext/rational.bundle            [library]
 runtime/parrot/dynext/rational.dll               [library]
 runtime/parrot/dynext/rational.dylib             [library]
 runtime/parrot/dynext/rational.so                [library]
+runtime/parrot/dynext/select.bundle              [library]
+runtime/parrot/dynext/select.dll                 [library]
+runtime/parrot/dynext/select.dylib               [library]
+runtime/parrot/dynext/select.so                  [library]
 runtime/parrot/dynext/sys_ops.bundle             [library]
 runtime/parrot/dynext/sys_ops.dll                [library]
 runtime/parrot/dynext/sys_ops.dylib              [library]
@@ -234,6 +239,7 @@ runtime/parrot/include/iterator.pasm             [main]
 runtime/parrot/include/libpaths.pasm             [main]
 runtime/parrot/include/longopt.pasm              [main]
 runtime/parrot/include/opengl_defines.pasm       [main]
+runtime/parrot/include/parrot_version.pir        [main]
 runtime/parrot/include/parrotlib.pbc             [main]
 runtime/parrot/include/pmctypes.pasm             [main]
 runtime/parrot/include/signal.pasm               [main]
@@ -247,6 +253,7 @@ runtime/parrot/include/tm.pasm                   [main]
 runtime/parrot/include/vtable_methods.pasm       [main]
 runtime/parrot/include/warnings.pasm             [main]
 runtime/parrot/languages/JSON/JSON.pir           [data_json]
+runtime/parrot/languages/winxed/winxed.pbc       [winxed]
 runtime/parrot/library/Archive/Tar.pbc           [main]
 runtime/parrot/library/Archive/Zip.pbc           [main]
 runtime/parrot/library/CGI/QueryHash.pbc         [main]
@@ -377,6 +384,7 @@ src/pmc/imageiofreeze.dump                       [devel]src
 src/pmc/imageiosize.dump                         [devel]src
 src/pmc/imageiostrings.dump                      [devel]src
 src/pmc/imageiothaw.dump                         [devel]src
+src/pmc/imccompiler.dump                         [devel]src
 src/pmc/integer.dump                             [devel]src
 src/pmc/iterator.dump                            [devel]src
 src/pmc/key.dump                                 [devel]src
@@ -406,6 +414,7 @@ src/pmc/packfilefixuptable.dump                  [devel]src
 src/pmc/packfileopmap.dump                       [devel]src
 src/pmc/packfilerawsegment.dump                  [devel]src
 src/pmc/packfilesegment.dump                     [devel]src
+src/pmc/packfileview.dump                        [devel]src
 src/pmc/parrotinterpreter.dump                   [devel]src
 src/pmc/parrotlibrary.dump                       [devel]src
 src/pmc/parrotthread.dump                        [devel]src

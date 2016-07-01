@@ -6,11 +6,14 @@ use warnings;
 use lib qw( . lib ../lib ../../lib );
 use Test::More;
 use Parrot::Test;
+use Parrot::Config;
 use File::Spec::Functions;
 
-plan skip_all => 'src/parrot_config.o does not exist' unless -e catfile(qw/src parrot_config.o/);
+my $parrot_config = "parrot_config" . $PConfig{o};
 
-plan tests => 15;
+plan skip_all => 'src/parrot_config.o does not exist' unless -e catfile("src", $parrot_config);
+
+plan tests => 16;
 
 =head1 NAME
 
@@ -42,6 +45,7 @@ my $common = linedirective(__LINE__) . <<'CODE';
 #include "parrot/embed.h"
 #include "parrot/extend.h"
 #include "parrot/extend_vtable.h"
+#include "imcc/api.h"
 
 static void fail(const char *msg);
 static Parrot_String createstring(Parrot_Interp interp, const char * value);
@@ -173,7 +177,7 @@ Done
 Really done
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', 'Parrot_compile_string populates the error string when an opcode is given improper arguments');
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', 'Parrot_compile_string populates the error string when an opcode is given improper arguments', todo => "Must explicitly set a PIR compreg");
 
 int main(int argc, const char **argv)
 {
@@ -196,7 +200,7 @@ CODE
 The opcode 'copy' (copy<0>) was not found. Check the type and number of the arguments
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', 'Parrot_compile_string populates the error string when given invalid language string');
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', 'Parrot_compile_string populates the error string when given invalid language string', todo => "Must explicitly set a PIR compreg" );
 
 int main(int argc, const char **argv)
 {
@@ -246,7 +250,7 @@ error:imcc:syntax error, unexpected IDENTIFIER ('The')
 OUTPUT
 
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Hello world from main" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Hello world from main", todo => "Must explicitly set a PIR compreg" );
 
 int main(void)
 {
@@ -281,7 +285,7 @@ Hello, pir
 OUTPUT
 
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Hello world from a sub" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Hello world from a sub", todo => "Must explicitly set a PIR compreg" );
 
 int main(void)
 {
@@ -333,7 +337,7 @@ CODE
 Hello, sub
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "calling a sub with string argument and return a string" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "calling a sub with string argument and return a string", todo => "Must explicitly set a PIR compreg" );
 
 int main(void)
 {
@@ -392,7 +396,7 @@ CODE
 Hello, world!
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "returning a Float PMC" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "returning a Float PMC", todo => "Must explicitly set a PIR compreg" );
 
 int main(void)
 {
@@ -447,7 +451,7 @@ CODE
 42.0 is the answer. What is the question?
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "returning two Float PMCs in a ResizablePMCArray" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "returning two Float PMCs in a ResizablePMCArray", todo => "Must explicitly set a PIR compreg" );
 
 int main(void)
 {
@@ -507,7 +511,7 @@ CODE
 42.0 is the answer and pi*100 = 314.0
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "calling a sub with string argument and return a numeric" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "calling a sub with string argument and return a numeric", todo => "Must explicitly set a PIR compreg" );
 
 int main(void)
 {
@@ -565,7 +569,8 @@ CODE
 42.0 is the answer. What is the question?
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "External sub" );
+
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "External sub", todo => "Must explicitly set a PIR compreg" );
 
 void hello(Parrot_Interp interp);
 
@@ -580,12 +585,13 @@ int main(void)
     Parrot_String compiler;
     Parrot_String errstr;
     Parrot_PMC code;
-    Parrot_PMC hellosub;
+    Parrot_PMC hellosub, pir_compiler, pasm_compiler, interp_pmc;
 
     /* Create the interpreter */
-    interp = Parrot_new(NULL);
-    if (! interp)
-        fail("Cannot create parrot interpreter");
+    interp = new_interp();
+
+    imcc_get_pir_compreg_api(interp_pmc, 1, &pir_compiler);
+    imcc_get_pir_compreg_api(interp_pmc, 1, &pasm_compiler);
 
     /* Compile pir */
     compiler = createstring(interp, "PIR");
@@ -608,7 +614,7 @@ CODE
 Hello from C
 OUTPUT
 
-c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Insert external sub in namespace" );
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Insert external sub in namespace", todo => "Must explicitly set a PIR compreg" );
 
 void hello(Parrot_Interp interp);
 
@@ -620,7 +626,7 @@ void hello(Parrot_Interp interp)
 int main(void)
 {
     Parrot_Interp interp;
-    Parrot_String compiler;
+    Parrot_String compiler, pir_compiler;
     Parrot_String errstr;
     Parrot_PMC code;
     Parrot_PMC hellosub;
@@ -634,6 +640,7 @@ int main(void)
     interp = Parrot_new(NULL);
     if (! interp)
         fail("Cannot create parrot interpreter");
+
 
     /* Compile pir */
     compiler = createstring(interp, "PIR");
@@ -1114,6 +1121,39 @@ Pir compiler returned no prog
 Pir compiler returned no prog
 OUTPUT
 
+}
+
+SKIP: {
+skip 'Need extra NCI thunks',1 unless $PConfig{HAS_EXTRA_NCI_THUNKS};
+
+c_output_is($common . linedirective(__LINE__) . <<'CODE', <<'OUTPUT', "Parrot_sub_new_from_c_func");
+
+void test(int x);
+
+void test(int x)
+{
+    printf("Hello!\n", x);
+}
+
+int main()
+{
+    Parrot_Interp interp;
+    Parrot_PMC test_pmc;
+    int x,y;
+
+    /* Create the interpreter */
+    interp = new_interp();
+
+    x = 10;
+
+    test_pmc = Parrot_sub_new_from_c_func(interp, (void (*)())& test, "i");
+    Parrot_ext_call(interp, test_pmc, "I->", x, &y);
+
+    Parrot_x_exit(interp, 0);
+}
+CODE
+Hello!
+OUTPUT
 }
 
 # Local Variables:

@@ -1,5 +1,4 @@
 # Copyright (C) 2004-2011, Parrot Foundation.
-#
 
 =head1 NAME
 
@@ -25,7 +24,7 @@ use warnings;
 use base qw( Exporter );
 our @EXPORT_OK = qw();
 use Storable ();
-use Parrot::PMC;
+use Parrot::PMC ();
 use Parrot::Pmc2c::Emitter ();
 use Parrot::Pmc2c::Method ();
 use Parrot::Pmc2c::UtilFunctions qw(
@@ -34,9 +33,6 @@ use Parrot::Pmc2c::UtilFunctions qw(
     c_code_coda
     gen_multi_name
 );
-use Text::Balanced 'extract_bracketed';
-use Parrot::Pmc2c::PCCMETHOD ();
-use Parrot::Pmc2c::MULTI ();
 use Parrot::Pmc2c::PMC::RO ();
 
 sub create {
@@ -75,7 +71,7 @@ sub dump {
     # gen_parent_lookup_info( $self, $pmc2cMain, $pmcs );
     # gen_parent_reverse_lookup_info( $self, $pmcs, $vtable_dump );
 
-    Storable::store( $self, $self->filename('.dump') );
+    Storable::nstore( $self, $self->filename('.dump') );
 }
 
 # methods
@@ -203,7 +199,6 @@ sub unimplemented_vtable {
 sub normal_unimplemented_vtable {
     my ( $self, $vt_meth ) = @_;
     return 0 if $vt_meth eq 'class_init';
-    return 0 if $self->vtable->is_mmd($vt_meth);
     return 0 if $self->has_method($vt_meth);
     return 1;
 }
@@ -382,12 +377,6 @@ sub super_method {
             $self->super_attrs( $vt_meth, $super_method->attrs );
 
             $self->inherit_attrs($vt_meth) if $self->get_method($vt_meth);
-
-            my $super_mmd_rights = $super_method->mmd_rights;
-            if ( $super_mmd_rights && @{$super_mmd_rights} ) {
-                $self->{super_mmd_rights}{$vt_meth}{$super_pmc_name} =
-                    $super_mmd_rights;
-            }
         }
         else {
             $super_pmc_name = $super_pmc;
@@ -585,8 +574,8 @@ EOH
     }
     $h->emit("${export}VTABLE* Parrot_${name}_get_vtable(PARROT_INTERP);\n");
     $h->emit("${export}VTABLE* Parrot_${name}_ro_get_vtable(PARROT_INTERP);\n");
-    $h->emit("${export}PMC*    Parrot_${name}_get_mro(PARROT_INTERP, ARGIN_NULLOK(PMC* mro));\n");
-    $h->emit("${export}Hash*   Parrot_${name}_get_isa(PARROT_INTERP, ARGIN_NULLOK(Hash* isa));\n");
+    $h->emit("${export}PMC*    Parrot_${name}_get_mro(PARROT_INTERP, ARGMOD(PMC* mro));\n");
+    $h->emit("${export}Hash*   Parrot_${name}_get_isa(PARROT_INTERP, ARGMOD_NULLOK(Hash* isa));\n");
 
 
     $self->gen_attributes;
@@ -762,6 +751,48 @@ sub post_method_gen {
         $method->body(Parrot::Pmc2c::Emitter->text($body) );
     }
 
+    # generate PCC-variants for multis
+    foreach ( @{ $self->find_multi_functions } ) {
+        my ($name, $fsig, $ns, $func, $method) = @$_;
+        (my $new_name = $method->full_method_name($self->name) . '_pcc') =~ s/.*?_multi_/multi_/;
+        my $new_method = $method->clone({
+                            name        => $new_name,
+                            type        => "MULTI_PCC",
+                            parameters  => '',
+                            return_type => 'void'
+        });
+
+        # Get parameters. Strip type from param
+        my @parameters = map { /\s*\*?(\S+)$/; $1 } (split /,/, $method->parameters);
+
+        my $need_result = $method->return_type && $method->return_type !~ 'void';
+
+        (my $pcc_sig) = $method->pcc_signature;
+        my ($pcc_args, $pcc_ret) = $pcc_sig =~ /(.*)->(.*)/;
+
+        # Get paramete storage. Types are already provided, but we need semi-colon delimitation.
+        (my $body = $method->parameters) =~ s/,/;/g;
+        $body .= ";\n";
+        $body .= $method->return_type . " _result;\n" if $need_result;
+        $body .= "PMC *_call_obj = Parrot_pcc_get_signature(interp, CURRENT_CONTEXT(interp));\n";
+
+        # pcc params
+        $body .= "Parrot_pcc_fill_params_from_c_args(interp, _call_obj, \"Pi$pcc_args\", &_self" .
+                    (join '', map { ", &$_" } @parameters) . ");\n";
+
+        # C call
+        $body .= "_result = " if $need_result;
+        my $parameters = join ', ', 'INTERP', 'SELF', @parameters;
+        $body .= $method->full_method_name($self->name) . "($parameters);\n";
+
+        # pcc return
+        $body .= <<EOC if $need_result;
+    Parrot_pcc_set_call_from_c_args(interp, _call_obj, "$pcc_ret", _result);
+EOC
+
+        $new_method->body(Parrot::Pmc2c::Emitter->text($body));
+        $self->add_method($new_method);
+    }
 }
 =item C<gen_methods()>
 
@@ -830,10 +861,9 @@ sub find_multi_functions {
 
     foreach my $method ( @{ $self->methods } ) {
         next unless $method->is_multi;
-        my $short_sig    = $method->{MULTI_short_sig};
         my $full_sig     = $pmcname . "," . $method->{MULTI_full_sig};
         my $functionname = 'Parrot_' . $pmcname . '_' . $method->name;
-        push @multi_names, [ $method->symbol, $short_sig, $full_sig,
+        push @multi_names, [ $method->symbol, $full_sig,
                              $pmcname, $functionname, $method ];
     }
     return ( \@multi_names );
@@ -890,7 +920,6 @@ sub vtable_decl {
 
     my @vt_methods;
     foreach my $vt_method ( @{ $self->vtable->methods } ) {
-        next if $vt_method->is_mmd;
         push @vt_methods,
             $self->build_full_c_vt_method_name( $vt_method->name );
     }
@@ -898,7 +927,7 @@ sub vtable_decl {
     my $methlist = join( ",\n        ", @vt_methods );
 
     my $cout = <<ENDOFCODE;
-    const VTABLE $temp_struct_name = {
+    static const VTABLE $temp_struct_name = {
         NULL,       /* namespace */
         $enum_name, /* base_type */
         NULL,       /* whoami */
@@ -967,12 +996,11 @@ sub init_func {
 
     my $i = 0;
     for my $multi (@$multi_funcs) {
-        my ($name, $ssig, $fsig, $ns, $func) = @$multi;
-        my ($name_str, $ssig_str, $fsig_str, $ns_name)     =
-            map { gen_multi_name($_, $cache) } ($name, $ssig, $fsig, $ns);
+        my ($name, $fsig, $ns, $func) = @$multi;
+        my ($name_str, $fsig_str, $ns_name)     =
+            map { gen_multi_name($_, $cache) } ($name, $fsig, $ns);
 
         for my $s ([$name, $name_str],
-                   [$ssig, $ssig_str],
                    [$fsig, $fsig_str],
                    [$ns,   $ns_name ]) {
             my ($raw_string, $name) = @$s;
@@ -982,11 +1010,9 @@ sub init_func {
         }
 
         push @multi_list, <<END_MULTI_LIST;
-            _temp_multi_func_list[$i].multi_name = $name_str;
-            _temp_multi_func_list[$i].short_sig = $ssig_str;
-            _temp_multi_func_list[$i].full_sig = $fsig_str;
-            _temp_multi_func_list[$i].ns_name = $ns_name;
-            _temp_multi_func_list[$i].func_ptr = (funcptr_t) $func;
+_temp_func = Parrot_pmc_new(interp, enum_class_NativePCCMethod);
+VTABLE_set_pointer_keyed_str(interp, _temp_func, CONST_STRING(interp, "->"), (void *)${func}_pcc);
+Parrot_mmd_add_multi_from_long_sig(interp, $name_str, $fsig_str, _temp_func);
 END_MULTI_LIST
         $i++;
 
@@ -1149,8 +1175,8 @@ EOC
 
         $cout .= <<"EOC";
         {
-            STRING *method_name = CONST_STRING_GEN(interp, "$symbol_name");
-            STRING *signature   = CONST_STRING_GEN(interp, "$pcc_signature");
+            STRING * const method_name = CONST_STRING_GEN(interp, "$symbol_name");
+            STRING * const signature   = CONST_STRING_GEN(interp, "$pcc_signature");
             register_native_pcc_method_in_ns(interp, entry,
                 F2DPTR(Parrot_${classname}_${method_name}),
                 method_name, signature);
@@ -1181,11 +1207,8 @@ EOC
     if ( @$multi_funcs ) {
         # Don't const the list, breaks some older C compilers
         $cout .= $multi_strings . <<"EOC";
-
-            multi_func_list _temp_multi_func_list[$multi_list_size];
+        PMC *_temp_func;
 $multi_list
-            Parrot_mmd_add_multi_list_from_c_args(interp,
-                _temp_multi_func_list, $multi_list_size);
 EOC
     }
 
@@ -1316,14 +1339,12 @@ sub get_mro_func {
 $export
 PARROT_CANNOT_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
-PMC* Parrot_${classname}_get_mro(PARROT_INTERP, ARGIN_NULLOK(PMC* mro)) {
+PMC* Parrot_${classname}_get_mro(PARROT_INTERP, ARGMOD(PMC* mro)) {
     if (PMC_IS_NULL(mro)) {
         mro = Parrot_pmc_new(interp, enum_class_ResizableStringArray);
     }
 $get_mro
-    VTABLE_unshift_string(interp, mro,
-        Parrot_str_new_init(interp, "$classname", @{[length($classname)]},
-            Parrot_default_encoding_ptr, 0));
+    VTABLE_unshift_string(interp, mro, CONST_STRING_GEN(interp, "$classname"));
     return mro;
 }
 
@@ -1445,8 +1466,8 @@ $export
 PARROT_CANNOT_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
 VTABLE* Parrot_${classname}_get_vtable_pointer(PARROT_INTERP) {
-    STRING *type_name = Parrot_str_new_constant(interp, "${classname}");
-    INTVAL  type_num  = Parrot_pmc_get_type_str(interp, type_name);
+    STRING * const type_name = Parrot_str_new_constant(interp, "${classname}");
+    const INTVAL type_num  = Parrot_pmc_get_type_str(interp, type_name);
     return interp->vtables[type_num];
 }
 
@@ -1490,12 +1511,12 @@ sub gen_switch_vtable {
     # No cookies for DynPMC. At least not now.
     return 1 if $self->is_dynamic;
 
-    # Convert list of multis to name->[(type,,ssig,fsig,ns,func)] hash.
+    # Convert list of multis to name->[(type,fsig,ns,func,method)] hash.
     my %multi_methods;
     foreach (@{$self->find_multi_functions}) {
-        my ($name, $ssig, $fsig, $ns, $func, $method) = @$_;
+        my ($name, $fsig, $ns, $func, $method) = @$_;
         my @sig = split /,/, $fsig;
-        push @{ $multi_methods{ $name } }, [ $sig[1], $ssig, $fsig, $ns, $func, $method ];
+        push @{ $multi_methods{ $name } }, [ $sig[1], $fsig, $ns, $func, $method ];
     }
 
     # vtables
@@ -1538,7 +1559,7 @@ BODY
 sub generate_single_case {
     my ($self, $vt_method_name, $multi, @parameters) = @_;
 
-    my ($type, $ssig, $fsig, $ns, $func, $impl) = @$multi;
+    my ($type, $fsig, $ns, $func, $impl) = @$multi;
     my $case;
 
     # Gather parameters names
@@ -1551,7 +1572,7 @@ sub generate_single_case {
     if ($type eq 'DEFAULT' || $type eq 'PMC') {
         # For default case we have to handle return manually.
         my ($pcc_signature, $retval, $call_tail, $pcc_return)
-                = $self->gen_defaul_case_wrapping($ssig, @parameters);
+                = gen_defaul_case_wrapping($impl);
         my $dispatch = "Parrot_mmd_multi_dispatch_from_c_args(INTERP, \"$vt_method_name\", \"$pcc_signature\", SELF, $parameters$call_tail);";
 
         $case = <<"CASE";
@@ -1592,26 +1613,26 @@ CASE
 # Generate (pcc_signature, retval holder, pcc_call_tail, return statement)
 # for default case in switch.
 sub gen_defaul_case_wrapping {
-    my ($self, $ssig, @parameters) = @_;
+    my $method = shift;
 
-    my $letter = substr($ssig, 0, 1);
-    if ($letter eq 'I') {
+    local $_ = $method->return_type;
+    if (/INTVAL/) {
         return (
-            "PP->" . $letter,
+            "PP->I",
             "INTVAL retval;",
             ', &retval',
             'return retval;',
         );
     }
-    elsif ($letter eq 'S') {
+    elsif (/STRING/) {
         return (
-            "PP->" . $letter,
+            "PP->S",
             "STRING *retval;",
             ', &retval',
             'return retval;',
         );
     }
-    elsif ($letter eq 'P') {
+    elsif (/PMC/) {
         return (
             'PPP->P',
             'PMC *retval = PMCNULL;',
@@ -1619,7 +1640,7 @@ sub gen_defaul_case_wrapping {
             "return retval;",
         );
     }
-    elsif ($letter eq 'v') {
+    elsif (/void\s*$/) {
         return (
             'PP->',
             '',
@@ -1628,7 +1649,7 @@ sub gen_defaul_case_wrapping {
         );
     }
     else {
-        die "Can't handle signature $ssig!";
+        die "Can't handle return type `$_'!";
     }
 }
 

@@ -23,6 +23,7 @@ passing to and from subroutines following the Parrot Calling Conventions.
 #include "args.str"
 #include "pmc/pmc_key.h"
 #include "pmc/pmc_fixedintegerarray.h"
+#include "pmc/pmc_callcontext.h"
 
 /* HEADERIZER HFILE: include/parrot/call.h */
 
@@ -63,12 +64,6 @@ static void assign_default_param_value(PARROT_INTERP,
         __attribute__nonnull__(4)
         __attribute__nonnull__(5);
 
-PARROT_CAN_RETURN_NULL
-PARROT_WARN_UNUSED_RESULT
-static PMC* clone_key_arg(PARROT_INTERP, ARGIN(PMC *key))
-        __attribute__nonnull__(1)
-        __attribute__nonnull__(2);
-
 static void dissect_aggregate_arg(PARROT_INTERP,
     ARGMOD(PMC *call_object),
     ARGIN(PMC *aggregate))
@@ -103,21 +98,22 @@ static void fill_params(PARROT_INTERP,
         FUNC_MODIFIES(*call_object);
 
 PARROT_WARN_UNUSED_RESULT
-static INTVAL intval_constant_from_op(SHIM_INTERP,
+static INTVAL intval_constant_from_op(PARROT_INTERP,
     ARGIN(const opcode_t *raw_params),
     INTVAL param_index)
         __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
-static INTVAL intval_constant_from_varargs(SHIM_INTERP,
-    SHIM(void *data),
-    SHIM(INTVAL index));
+static INTVAL intval_constant_from_varargs(PARROT_INTERP,
+    ARGIN(void *data),
+    INTVAL index)
+        __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
-static INTVAL* intval_param_from_c_args(SHIM_INTERP,
+static INTVAL* intval_param_from_c_args(PARROT_INTERP,
     ARGIN(va_list *args),
-    SHIM(INTVAL param_index))
+    INTVAL param_index)
         __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
@@ -132,11 +128,10 @@ PARROT_COLD
 PARROT_DOES_NOT_RETURN
 static void named_argument_arity_error(PARROT_INTERP,
     int named_arg_count,
-    ARGMOD_NULLOK(Hash *named_used_list),
-    ARGIN(PMC *named_arg_list))
+    ARGFREE(Hash *named_used_list),
+    ARGIN(Hash *named_arg_list))
         __attribute__nonnull__(1)
-        __attribute__nonnull__(4)
-        FUNC_MODIFIES(*named_used_list);
+        __attribute__nonnull__(4);
 
 PARROT_WARN_UNUSED_RESULT
 static FLOATVAL numval_constant_from_op(PARROT_INTERP,
@@ -146,15 +141,16 @@ static FLOATVAL numval_constant_from_op(PARROT_INTERP,
         __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
-static FLOATVAL numval_constant_from_varargs(SHIM_INTERP,
-    SHIM(void *data),
-    SHIM(INTVAL index));
+static FLOATVAL numval_constant_from_varargs(PARROT_INTERP,
+    ARGIN(void *data),
+    INTVAL index)
+        __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
-static FLOATVAL* numval_param_from_c_args(SHIM_INTERP,
+static FLOATVAL* numval_param_from_c_args(PARROT_INTERP,
     ARGIN(va_list *args),
-    SHIM(INTVAL param_index))
+    INTVAL param_index)
         __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
@@ -183,15 +179,16 @@ static PMC* pmc_constant_from_op(PARROT_INTERP,
 
 PARROT_CAN_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
-static PMC* pmc_constant_from_varargs(SHIM_INTERP,
-    SHIM(void *data),
-    SHIM(INTVAL index));
+static PMC* pmc_constant_from_varargs(PARROT_INTERP,
+    ARGIN(void *data),
+    INTVAL index)
+        __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
-static PMC** pmc_param_from_c_args(SHIM_INTERP,
+static PMC** pmc_param_from_c_args(PARROT_INTERP,
     ARGIN(va_list *args),
-    SHIM(INTVAL param_index))
+    INTVAL param_index)
         __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
@@ -201,6 +198,16 @@ static PMC** pmc_param_from_op(PARROT_INTERP,
     INTVAL param_index)
         __attribute__nonnull__(1)
         __attribute__nonnull__(2);
+
+static void set_call_from_varargs(PARROT_INTERP,
+    ARGIN(PMC *signature),
+    ARGIN(const char *sig),
+    ARGMOD(va_list *args))
+        __attribute__nonnull__(1)
+        __attribute__nonnull__(2)
+        __attribute__nonnull__(3)
+        __attribute__nonnull__(4)
+        FUNC_MODIFIES(*args);
 
 PARROT_WARN_UNUSED_RESULT
 PARROT_CAN_RETURN_NULL
@@ -212,15 +219,16 @@ static STRING* string_constant_from_op(PARROT_INTERP,
 
 PARROT_CAN_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
-static STRING* string_constant_from_varargs(SHIM_INTERP,
-    SHIM(void *data),
-    SHIM(INTVAL index));
+static STRING* string_constant_from_varargs(PARROT_INTERP,
+    ARGIN(void *data),
+    INTVAL index)
+        __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
-static STRING** string_param_from_c_args(SHIM_INTERP,
+static STRING** string_param_from_c_args(PARROT_INTERP,
     ARGIN(va_list *args),
-    SHIM(INTVAL param_index))
+    INTVAL param_index)
         __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
@@ -235,9 +243,6 @@ static STRING** string_param_from_op(PARROT_INTERP,
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(arg_info) \
     , PARROT_ASSERT_ARG(accessor))
-#define ASSERT_ARGS_clone_key_arg __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
-       PARROT_ASSERT_ARG(interp) \
-    , PARROT_ASSERT_ARG(key))
 #define ASSERT_ARGS_dissect_aggregate_arg __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(call_object) \
@@ -255,7 +260,8 @@ static STRING** string_param_from_op(PARROT_INTERP,
     , PARROT_ASSERT_ARG(accessor))
 #define ASSERT_ARGS_intval_constant_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(raw_params))
-#define ASSERT_ARGS_intval_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (0)
+#define ASSERT_ARGS_intval_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(data_unused))
 #define ASSERT_ARGS_intval_param_from_c_args __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(args))
 #define ASSERT_ARGS_intval_param_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
@@ -267,7 +273,8 @@ static STRING** string_param_from_op(PARROT_INTERP,
 #define ASSERT_ARGS_numval_constant_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(raw_params))
-#define ASSERT_ARGS_numval_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (0)
+#define ASSERT_ARGS_numval_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(data_unused))
 #define ASSERT_ARGS_numval_param_from_c_args __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(args))
 #define ASSERT_ARGS_numval_param_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
@@ -280,16 +287,23 @@ static STRING** string_param_from_op(PARROT_INTERP,
 #define ASSERT_ARGS_pmc_constant_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(raw_params))
-#define ASSERT_ARGS_pmc_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (0)
+#define ASSERT_ARGS_pmc_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(data_unused))
 #define ASSERT_ARGS_pmc_param_from_c_args __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(args))
 #define ASSERT_ARGS_pmc_param_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(raw_params))
+#define ASSERT_ARGS_set_call_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(interp) \
+    , PARROT_ASSERT_ARG(signature) \
+    , PARROT_ASSERT_ARG(sig) \
+    , PARROT_ASSERT_ARG(args))
 #define ASSERT_ARGS_string_constant_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(raw_params))
-#define ASSERT_ARGS_string_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (0)
+#define ASSERT_ARGS_string_constant_from_varargs __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(data_unused))
 #define ASSERT_ARGS_string_param_from_c_args __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(args))
 #define ASSERT_ARGS_string_param_from_op __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
@@ -392,9 +406,7 @@ Parrot_pcc_build_sig_object_from_op(PARROT_INTERP, ARGIN_NULLOK(PMC *signature),
                     dissect_aggregate_arg(interp, call_object, pmc_value);
                 }
                 else {
-                    VTABLE_push_pmc(interp, call_object, PMC_IS_NULL(pmc_value)
-                            ? PMCNULL
-                            : clone_key_arg(interp, pmc_value));
+                    VTABLE_push_pmc(interp, call_object, pmc_value);
                     if (arg_flags & PARROT_ARG_INVOCANT)
                         Parrot_pcc_set_object(interp, call_object, pmc_value);
                 }
@@ -490,7 +502,7 @@ dissect_aggregate_arg(PARROT_INTERP, ARGMOD(PMC *call_object), ARGIN(PMC *aggreg
         parrot_hash_iterate(hash,
             VTABLE_set_pmc_keyed_str(interp, call_object,
                 (STRING *)_bucket->key,
-                Parrot_hash_value_to_pmc(interp, hash, _bucket->value));)
+                Parrot_hash_value_to_pmc(interp, hash, _bucket->value)););
     }
     else {
         Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION,
@@ -500,12 +512,38 @@ dissect_aggregate_arg(PARROT_INTERP, ARGMOD(PMC *call_object), ARGIN(PMC *aggreg
 
 /*
 
+=item C<void Parrot_pcc_set_call_from_c_args(PARROT_INTERP, PMC *signature,
+const char *sig, ...)>
+
+Converts a variable list of C args into an existent CallContext PMC.
+The CallContext stores the original short signature string and an array of
+integer types to pass on to the multiple dispatch search.
+
+=cut
+
+*/
+
+PARROT_EXPORT
+void
+Parrot_pcc_set_call_from_c_args(PARROT_INTERP,
+        ARGIN(PMC *signature), ARGIN(const char *sig), ...)
+{
+    ASSERT_ARGS(Parrot_pcc_set_call_from_c_args)
+    va_list args;
+    va_start(args, sig);
+    Parrot_pcc_set_call_from_varargs(interp, signature,
+         sig, &args);
+    va_end(args);
+}
+
+/*
+
 =item C<PMC* Parrot_pcc_build_call_from_c_args(PARROT_INTERP, PMC *signature,
 const char *sig, ...)>
 
-Converts a variable list of C args into a CallContext PMC. The CallContext
-stores the original short signature string and an array of integer types to
-pass on to the multiple dispatch search.
+Converts a variable list of C args into a CallContext PMC, creating a new one
+if needed. The CallContext stores the original short signature string and an
+array of integer types to pass on to the multiple dispatch search.
 
 =cut
 
@@ -530,12 +568,109 @@ Parrot_pcc_build_call_from_c_args(PARROT_INTERP,
 
 /*
 
+=item C<static void set_call_from_varargs(PARROT_INTERP, PMC *signature, const
+char *sig, va_list *args)>
+
+Helper for Parrot_pcc_build_call_from_varargs and Parrot_pcc_set_call_from_varargs.
+
+=cut
+
+*/
+
+static void
+set_call_from_varargs(PARROT_INTERP,
+        ARGIN(PMC *signature), ARGIN(const char *sig),
+        ARGMOD(va_list *args))
+{
+    ASSERT_ARGS(set_call_from_varargs)
+    PMC         *arg_flags    = PMCNULL;
+    INTVAL       i            = 0;
+
+    parse_signature_string(interp, sig, &arg_flags);
+    SETATTR_CallContext_arg_flags(interp, signature, arg_flags);
+
+    /* Process the varargs list */
+    for (; sig[i] != '\0'; ++i) {
+        const INTVAL type = sig[i];
+
+        /* Regular arguments just set the value */
+        switch (type) {
+          case 'P':
+            {
+                const INTVAL type_lookahead = sig[i+1];
+                PMC * const pmc_arg = va_arg(*args, PMC *);
+                if (type_lookahead == 'f') {
+                    dissect_aggregate_arg(interp, signature, pmc_arg);
+                    ++i; /* skip 'f' */
+                }
+                else if (type_lookahead == 'i') {
+                    if (i)
+                        Parrot_ex_throw_from_c_args(interp, NULL,
+                            EXCEPTION_INVALID_OPERATION,
+                            "Dispatch: only the first argument can be an invocant");
+                    else {
+                        VTABLE_push_pmc(interp, signature, pmc_arg);
+                        ++i; /* skip 'i' */
+                        Parrot_pcc_set_object(interp, signature, pmc_arg);
+                    }
+                }
+                else
+                    VTABLE_push_pmc(interp, signature, pmc_arg);
+                break;
+            }
+          case 'S':
+            VTABLE_push_string(interp, signature, va_arg(*args, STRING *));
+            break;
+          case 'I':
+            VTABLE_push_integer(interp, signature, va_arg(*args, INTVAL));
+            break;
+          case 'N':
+            VTABLE_push_float(interp, signature, va_arg(*args, FLOATVAL));
+            break;
+          case '-':
+            return;
+            break;
+          default:
+            Parrot_ex_throw_from_c_args(interp, NULL,
+                    EXCEPTION_INVALID_OPERATION,
+                    "Dispatch: invalid argument type %c!", type);
+        }
+    }
+}
+
+/*
+
+=item C<void Parrot_pcc_set_call_from_varargs(PARROT_INTERP, PMC *signature,
+const char *sig, va_list *args)>
+
+Coverts a varargs list into an existent CallContext PMC.
+The CallContext stores the original short signature string and an array of
+integer types to pass on to the multiple dispatch search.
+
+=cut
+
+*/
+
+PARROT_EXPORT
+void
+Parrot_pcc_set_call_from_varargs(PARROT_INTERP,
+        ARGIN(PMC *signature), ARGIN(const char *sig),
+        ARGMOD(va_list *args))
+{
+    ASSERT_ARGS(Parrot_pcc_set_call_from_varargs)
+    PARROT_ASSERT(PMCNULL != signature);
+    VTABLE_morph(interp, signature, PMCNULL);
+    set_call_from_varargs(interp, signature, sig, args);
+}
+
+/*
+
 =item C<PMC* Parrot_pcc_build_call_from_varargs(PARROT_INTERP, PMC *signature,
 const char *sig, va_list *args)>
 
-Converts a varargs list into a CallContext PMC. The CallContext stores the
-original short signature string and an array of integer types to pass on to the
-multiple dispatch search.
+Converts a varargs list into a CallContext PMC, creating a new one if needed.
+The CallContext stores the original short signature string and an array of
+integer types to pass on to the multiple dispatch search.
 
 =cut
 
@@ -551,8 +686,6 @@ Parrot_pcc_build_call_from_varargs(PARROT_INTERP,
 {
     ASSERT_ARGS(Parrot_pcc_build_call_from_varargs)
     PMC         *call_object;
-    PMC         *arg_flags    = PMCNULL;
-    INTVAL       i            = 0;
 
     if (PMC_IS_NULL(signature))
         call_object = Parrot_pmc_new(interp, enum_class_CallContext);
@@ -561,58 +694,7 @@ Parrot_pcc_build_call_from_varargs(PARROT_INTERP,
         VTABLE_morph(interp, call_object, PMCNULL);
     }
 
-    parse_signature_string(interp, sig, &arg_flags);
-    VTABLE_set_attr_str(interp, call_object, CONST_STRING(interp, "arg_flags"), arg_flags);
-
-    /* Process the varargs list */
-    for (; sig[i] != '\0'; ++i) {
-        const INTVAL type = sig[i];
-
-        /* Regular arguments just set the value */
-        switch (type) {
-          case 'P':
-            {
-                const INTVAL type_lookahead = sig[i+1];
-                PMC * const pmc_arg = va_arg(*args, PMC *);
-                if (type_lookahead == 'f') {
-                    dissect_aggregate_arg(interp, call_object, pmc_arg);
-                    ++i; /* skip 'f' */
-                }
-                else if (type_lookahead == 'i') {
-                    if (i)
-                        Parrot_ex_throw_from_c_args(interp, NULL,
-                            EXCEPTION_INVALID_OPERATION,
-                            "Dispatch: only the first argument can be an invocant");
-                    else {
-                        VTABLE_push_pmc(interp, call_object, pmc_arg);
-                        ++i; /* skip 'i' */
-                        Parrot_pcc_set_object(interp, call_object, pmc_arg);
-                    }
-                }
-                else
-                    VTABLE_push_pmc(interp, call_object, PMC_IS_NULL(pmc_arg)
-                            ? PMCNULL
-                            : clone_key_arg(interp, pmc_arg));
-                break;
-            }
-          case 'S':
-            VTABLE_push_string(interp, call_object, va_arg(*args, STRING *));
-            break;
-          case 'I':
-            VTABLE_push_integer(interp, call_object, va_arg(*args, INTVAL));
-            break;
-          case 'N':
-            VTABLE_push_float(interp, call_object, va_arg(*args, FLOATVAL));
-            break;
-          case '-':
-            return call_object;
-            break;
-          default:
-            Parrot_ex_throw_from_c_args(interp, NULL,
-                    EXCEPTION_INVALID_OPERATION,
-                    "Dispatch: invalid argument type %c!", type);
-        }
-    }
+    set_call_from_varargs(interp, call_object, sig, args);
 
     return call_object;
 }
@@ -649,7 +731,7 @@ Parrot_pcc_build_sig_object_from_varargs(PARROT_INTERP, ARGIN_NULLOK(PMC *obj),
         return call_object;
 
     parse_signature_string(interp, sig, &arg_flags);
-    VTABLE_set_attr_str(interp, call_object, CONST_STRING(interp, "arg_flags"), arg_flags);
+    SETATTR_CallContext_arg_flags(interp, call_object, arg_flags);
 
     /* Process the varargs list */
     for (i = 0; sig[i] != '\0'; ++i) {
@@ -679,9 +761,7 @@ Parrot_pcc_build_sig_object_from_varargs(PARROT_INTERP, ARGIN_NULLOK(PMC *obj),
                      ++i; /* skip 'f' */
                 }
                 else {
-                    VTABLE_push_pmc(interp, call_object, PMC_IS_NULL(pmc_arg)
-                            ? PMCNULL
-                            : clone_key_arg(interp, pmc_arg));
+                    VTABLE_push_pmc(interp, call_object, pmc_arg);
                     if (type_lookahead == 'i') {
                         if (i != 0)
                             Parrot_ex_throw_from_c_args(interp, NULL,
@@ -941,7 +1021,7 @@ fill_params(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
     if (err_check && arg_index < positional_args) {
         /* We have extra positional args left over. */
         if (named_used_list != NULL)
-            parrot_hash_destroy(interp, named_used_list);
+            Parrot_hash_destroy(interp, named_used_list);
 
         Parrot_ex_throw_from_c_args(interp, NULL,
             EXCEPTION_INVALID_OPERATION,
@@ -967,16 +1047,14 @@ fill_params(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
         if (param_flags & PARROT_ARG_SLURPY_ARRAY) {
             PMC * const collect_named = Parrot_pmc_new(interp,
                     Parrot_hll_get_ctx_HLL_type(interp, enum_class_Hash));
-            PMC * const named_arg_list = VTABLE_get_attr_str(interp, call_object, CONST_STRING(interp, "named"));
+            Hash *h;
+            /* Early exit to avoid vtable call */
+            GETATTR_CallContext_hash(interp, call_object, h);
 
-            if (!PMC_IS_NULL(named_arg_list)) {
-                const INTVAL named_arg_count = VTABLE_elements(interp, named_arg_list);
-                INTVAL named_arg_index;
-
+            if (h && h->entries) {
                 /* Named argument iteration. */
-                for (named_arg_index = 0; named_arg_index < named_arg_count; ++named_arg_index) {
-                    STRING * const name = VTABLE_get_string_keyed_int(interp,
-                            named_arg_list, named_arg_index);
+                parrot_hash_iterate(h,
+                    STRING * const name = (STRING *)_bucket->key;
 
                     if ((named_used_list == NULL)
                     || !Parrot_hash_exists(interp, named_used_list, name)) {
@@ -992,8 +1070,7 @@ fill_params(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
                         Parrot_hash_put(interp, named_used_list, name, (void *)1);
 
                         ++named_count;
-                    }
-                }
+                    });
             }
 
             *accessor->pmc(interp, arg_info, param_index) = collect_named;
@@ -1104,7 +1181,6 @@ fill_params(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
 
     /* Double check that all named arguments were assigned to parameters. */
     if (err_check) {
-        PMC  *named_arg_list;
         Hash *h;
         /* Early exit to avoid vtable call */
         GETATTR_CallContext_hash(interp, call_object, h);
@@ -1114,15 +1190,9 @@ fill_params(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
             return;
         }
 
-        named_arg_list = VTABLE_get_attr_str(interp, call_object, CONST_STRING(interp, "named"));
-
-        if (!PMC_IS_NULL(named_arg_list)) {
-            const INTVAL named_arg_count = VTABLE_elements(interp, named_arg_list);
-
-            if (named_used_list == NULL || named_arg_count > named_count)
-                named_argument_arity_error(interp, named_arg_count,
-                                           named_used_list, named_arg_list);
-        }
+        if (named_used_list == NULL || (int)h->entries > named_count)
+            named_argument_arity_error(interp, h->entries,
+                                       named_used_list, h);
     }
     if (named_used_list != NULL)
         Parrot_hash_destroy(interp, named_used_list);
@@ -1131,7 +1201,7 @@ fill_params(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
 /*
 
 =item C<static void named_argument_arity_error(PARROT_INTERP, int
-named_arg_count, Hash *named_used_list, PMC *named_arg_list)>
+named_arg_count, Hash *named_used_list, Hash *named_arg_list)>
 
 In the case of a mismatch between passed and expected named arguments, throw
 a helpful exception.
@@ -1144,10 +1214,9 @@ PARROT_COLD
 PARROT_DOES_NOT_RETURN
 static void
 named_argument_arity_error(PARROT_INTERP, int named_arg_count,
-        ARGMOD_NULLOK(Hash *named_used_list), ARGIN(PMC *named_arg_list))
+        ARGFREE(Hash *named_used_list), ARGIN(Hash *named_arg_list))
 {
     ASSERT_ARGS(named_argument_arity_error)
-    INTVAL named_arg_index;
 
     if (named_used_list == NULL) {
         Parrot_ex_throw_from_c_args(interp, NULL,
@@ -1157,18 +1226,17 @@ named_argument_arity_error(PARROT_INTERP, int named_arg_count,
     }
 
     /* Named argument iteration. */
-    for (named_arg_index = 0; named_arg_index < named_arg_count; ++named_arg_index) {
-        STRING * const name = VTABLE_get_string_keyed_int(interp,
-                named_arg_list, named_arg_index);
+    parrot_hash_iterate(named_arg_list,
+        STRING * const name = (STRING *)_bucket->key;
 
-        if (!parrot_hash_exists(interp, named_used_list, name)) {
+        if (!Parrot_hash_exists(interp, named_used_list, name)) {
             Parrot_hash_destroy(interp, named_used_list);
             Parrot_ex_throw_from_c_args(interp, NULL,
                     EXCEPTION_INVALID_OPERATION,
                     "too many named arguments: '%S' not used",
                     name);
-        }
-    }
+        };);
+
     Parrot_hash_destroy(interp, named_used_list);
     Parrot_ex_throw_from_c_args(interp, NULL, EXCEPTION_INVALID_OPERATION,
         "Invalid named arguments, unspecified error");
@@ -1235,7 +1303,7 @@ Parrot_pcc_fill_params_from_op(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_object),
 {
     ASSERT_ARGS(Parrot_pcc_fill_params_from_op)
 
-    const static pcc_funcs_ptr function_pointers = {
+    static const pcc_funcs_ptr function_pointers = {
         (intval_ptr_func_t)intval_param_from_op,
         (numval_ptr_func_t)numval_param_from_op,
         (string_ptr_func_t)string_param_from_op,
@@ -1309,7 +1377,7 @@ Parrot_pcc_fill_params_from_varargs(PARROT_INTERP, ARGMOD_NULLOK(PMC *call_objec
 {
     ASSERT_ARGS(Parrot_pcc_fill_params_from_varargs)
     PMC    *raw_sig  = PMCNULL;
-    const static pcc_funcs_ptr function_pointers = {
+    static const pcc_funcs_ptr function_pointers = {
         (intval_ptr_func_t)intval_param_from_c_args,
         (numval_ptr_func_t)numval_param_from_c_args,
         (string_ptr_func_t)string_param_from_c_args,
@@ -1345,7 +1413,7 @@ The two result strings should be passed in as references to a C string.
 
 void
 Parrot_pcc_split_signature_string(ARGIN(const char *signature),
-        ARGMOD(const char **arg_sig), ARGMOD(const char **return_sig))
+        ARGOUT(const char **arg_sig), ARGOUT(const char **return_sig))
 {
     ASSERT_ARGS(Parrot_pcc_split_signature_string)
     const char *cur;
@@ -1494,8 +1562,8 @@ Parrot_pcc_parse_signature_string(PARROT_INTERP, ARGIN(STRING *signature),
 
 /*
 
-=item C<void Parrot_pcc_merge_signature_for_tailcall(PARROT_INTERP, PMC *
-parent, PMC * tailcall)>
+=item C<void Parrot_pcc_merge_signature_for_tailcall(PARROT_INTERP, PMC *parent,
+PMC *tailcall)>
 
 merge in signatures for tailcall
 
@@ -1504,8 +1572,7 @@ merge in signatures for tailcall
 */
 
 void
-Parrot_pcc_merge_signature_for_tailcall(PARROT_INTERP,
-        ARGMOD_NULLOK(PMC * parent), ARGMOD_NULLOK(PMC * tailcall))
+Parrot_pcc_merge_signature_for_tailcall(PARROT_INTERP, ARGMOD(PMC *parent), ARGMOD(PMC *tailcall))
 {
     ASSERT_ARGS(Parrot_pcc_merge_signature_for_tailcall)
     if (PMC_IS_NULL(parent) || PMC_IS_NULL(tailcall) || (parent == tailcall))
@@ -1733,7 +1800,7 @@ pmc_param_from_c_args(SHIM_INTERP, ARGIN(va_list *args), SHIM(INTVAL param_index
 
 PARROT_WARN_UNUSED_RESULT
 static INTVAL
-intval_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
+intval_constant_from_varargs(SHIM_INTERP, ARGIN(SHIM(void *data)), SHIM(INTVAL index))
 {
     ASSERT_ARGS(intval_constant_from_varargs)
     PARROT_FAILURE("Wrong call");
@@ -1742,7 +1809,7 @@ intval_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
 
 PARROT_WARN_UNUSED_RESULT
 static FLOATVAL
-numval_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
+numval_constant_from_varargs(SHIM_INTERP, ARGIN(SHIM(void *data)), SHIM(INTVAL index))
 {
     ASSERT_ARGS(numval_constant_from_varargs)
     PARROT_FAILURE("Wrong call");
@@ -1752,7 +1819,7 @@ numval_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
 PARROT_CAN_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
 static STRING*
-string_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
+string_constant_from_varargs(SHIM_INTERP, ARGIN(SHIM(void *data)), SHIM(INTVAL index))
 {
     ASSERT_ARGS(string_constant_from_varargs)
     PARROT_FAILURE("Wrong call");
@@ -1762,47 +1829,11 @@ string_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
 PARROT_CAN_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
 static PMC*
-pmc_constant_from_varargs(SHIM_INTERP, SHIM(void *data), SHIM(INTVAL index))
+pmc_constant_from_varargs(SHIM_INTERP, ARGIN(SHIM(void *data)), SHIM(INTVAL index))
 {
     ASSERT_ARGS(pmc_constant_from_varargs)
     PARROT_FAILURE("Wrong call");
     return PMCNULL;
-}
-
-/*
-
-=item C<static PMC* clone_key_arg(PARROT_INTERP, PMC *key)>
-
-Replaces any src registers by their values (done inside clone).  This needs a
-test for tailcalls too, but I think there is no syntax to pass a key to a
-tailcalled function or method.
-
-=cut
-
-*/
-
-PARROT_CAN_RETURN_NULL
-PARROT_WARN_UNUSED_RESULT
-static PMC*
-clone_key_arg(PARROT_INTERP, ARGIN(PMC *key))
-{
-    ASSERT_ARGS(clone_key_arg)
-    PMC *t;
-
-    if (PMC_IS_NULL(key))
-        return key;
-
-    if (key->vtable->base_type != enum_class_Key)
-        return key;
-
-    for (t = key; t; t=Parrot_key_next(interp, t)) {
-        /* register keys have to be cloned */
-        if (PObj_get_FLAGS(key) & KEY_register_FLAG) {
-            return VTABLE_clone(interp, key);
-        }
-    }
-
-    return key;
 }
 
 /*

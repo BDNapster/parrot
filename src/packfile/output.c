@@ -21,9 +21,10 @@ This file implements various functions for creating and writing packfiles.
 
 #include "parrot/parrot.h"
 #include "parrot/packfile.h"
+#include "pf_private.h"
 #include "pmc/pmc_key.h"
 
-/* HEADERIZER HFILE: include/parrot/packfile.h */
+/* HEADERIZER HFILE: src/packfile/pf_private.h */
 /* HEADERIZER BEGIN: static */
 /* Don't modify between HEADERIZER BEGIN / HEADERIZER END.  Your changes will be lost. */
 
@@ -203,7 +204,7 @@ constant table into a contiguous region of memory.
 
 PARROT_EXPORT
 size_t
-PackFile_ConstTable_pack_size(PARROT_INTERP, ARGIN(PackFile_Segment *seg))
+PackFile_ConstTable_pack_size(PARROT_INTERP, ARGMOD(PackFile_Segment *seg))
 {
     ASSERT_ARGS(PackFile_ConstTable_pack_size)
     opcode_t i;
@@ -224,6 +225,7 @@ PackFile_ConstTable_pack_size(PARROT_INTERP, ARGIN(PackFile_Segment *seg))
     }
     Parrot_hash_destroy(interp, self->pmc_hash);
     self->pmc_hash = NULL;
+    size += 1 + (self->ntags * 2);
 
     return size;
 }
@@ -250,7 +252,7 @@ PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
 opcode_t *
 PackFile_ConstTable_pack(PARROT_INTERP,
-        ARGIN(PackFile_Segment *seg), ARGMOD(opcode_t *cursor))
+        ARGMOD(PackFile_Segment *seg), ARGOUT(opcode_t *cursor))
 {
     ASSERT_ARGS(PackFile_ConstTable_pack)
     PackFile_ConstTable * const self = (PackFile_ConstTable *)seg;
@@ -276,6 +278,12 @@ PackFile_ConstTable_pack(PARROT_INTERP,
     Parrot_hash_destroy(interp, self->pmc_hash);
     self->pmc_hash = NULL;
 
+    *cursor++ = self->ntags;
+    for (i = 0; i < self->ntags; i++) {
+        *cursor++ = self->tag_map[i].tag_idx;
+        *cursor++ = self->tag_map[i].const_idx;
+    }
+
     return cursor;
 }
 
@@ -298,8 +306,7 @@ Reverse lookup a constant in the constant table.
 
 PARROT_EXPORT
 int
-PackFile_ConstTable_rlookup_num(PARROT_INTERP,
-    ARGIN(const PackFile_ConstTable *ct), FLOATVAL n)
+PackFile_ConstTable_rlookup_num(SHIM_INTERP, ARGIN(const PackFile_ConstTable *ct), FLOATVAL n)
 {
     ASSERT_ARGS(PackFile_ConstTable_rlookup_num)
     int i;
@@ -322,7 +329,7 @@ PackFile_ConstTable_rlookup_str(PARROT_INTERP,
     int i;
 
     if (ct->string_hash) {
-        HashBucket *bucket = Parrot_hash_get_bucket(interp, ct->string_hash, s);
+        const HashBucket * const bucket = Parrot_hash_get_bucket(interp, ct->string_hash, s);
         if (bucket) {
             i = (int)PTR2INTVAL(bucket->value);
             return i;
@@ -332,8 +339,7 @@ PackFile_ConstTable_rlookup_str(PARROT_INTERP,
 
     for (i = 0; i < ct->str.const_count; i++) {
         STRING * const sc = ct->str.constants[i];
-        if (STRING_equal(interp, s, sc)
-        &&  s->encoding == sc->encoding) {
+        if ((s->encoding == sc->encoding) && STRING_equal(interp, s, sc)) {
             return i;
         }
     }

@@ -482,7 +482,7 @@ filehandle when finished.
                 Parrot_ex_throw_from_c_args(INTERP, NULL, EXCEPTION_PIO_ERROR,
                     "Cannot readall on a new file from an already open filehandle");
 
-            filehandle  = Parrot_io_open_handle(INTERP, PMCNULL, name, NULL);
+            filehandle  = Parrot_io_open_handle(INTERP, PMCNULL, name, STRINGNULL);
 
             PARROT_ASSERT(filehandle->vtable->base_type == enum_class_FileHandle);
 
@@ -695,6 +695,23 @@ in the file.
         RETURN(INTVAL flags);
     }
 
+
+/*
+
+=item C<METHOD handle()>
+
+Returns the INTVAL used by the OS to identify this filehandle.
+
+=cut
+
+*/
+
+    METHOD handle() {
+        INTVAL handle;
+        GET_ATTR_os_handle(INTERP, SELF, handle);
+        RETURN(INTVAL handle);
+    }
+
 /*
 
 =item C<METHOD exit_status()>
@@ -775,11 +792,34 @@ Returns the next byte from the stream, but does not remove it.
 
 /*
 
+=item C<METHOD setasync()>
+
+=cut
+
+*/
+    METHOD setasync() {
+        Parrot_io_async(INTERP, SELF, 1);
+    }
+
+/*
+
+=item C<METHOD setblocking()>
+
+=cut
+
+*/
+    METHOD setblocking() {
+        Parrot_io_async(INTERP, SELF, 0);
+    }
+
+/*
+
 =back
 
 =cut
 
 */
+
 
 } /* end pmclass */
 

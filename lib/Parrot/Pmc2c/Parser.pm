@@ -1,5 +1,7 @@
-package Parrot::Pmc2c::Parser;
 # Copyright (C) 2004-2011, Parrot Foundation.
+
+package Parrot::Pmc2c::Parser;
+
 use strict;
 use warnings;
 use base qw( Exporter );
@@ -8,8 +10,9 @@ use Parrot::Pmc2c::PMC ();
 use Parrot::Pmc2c::Attribute ();
 use Parrot::Pmc2c::Method ();
 use Parrot::Pmc2c::Emitter ();
+use Parrot::Pmc2c::PCCMETHOD ();
+use Parrot::Pmc2c::MULTI ();
 use Parrot::Pmc2c::UtilFunctions qw(count_newlines filename slurp);
-use Text::Balanced 'extract_bracketed';
 use File::Basename qw(basename);
 
 =head1 NAME
@@ -257,20 +260,27 @@ sub find_methods {
                 body        => Parrot::Pmc2c::Emitter->text( $methodblock, $filename, $lineno ),
                 return_type => $returntype,
                 parameters  => $parameters,
-                type        => Parrot::Pmc2c::Method::VTABLE,
                 attrs       => $attrs,
                 decorators  => $decorators,
+                type        => $marker && $marker =~ /MULTI/  ? Parrot::Pmc2c::Method::MULTI      :
+                               $marker && $marker !~ /VTABLE/ ? Parrot::Pmc2c::Method::NON_VTABLE :
+                                                                Parrot::Pmc2c::Method::VTABLE
             }
         );
 
         # METHOD needs FixedIntegerArray header
-        if ( $marker and $marker =~ /METHOD/ ) {
+        if ( $method->type eq Parrot::Pmc2c::Method::NON_VTABLE ) {
             Parrot::Pmc2c::PCCMETHOD::rewrite_pccmethod( $method, $pmc );
             $pmc->set_flag('need_fia_header');
         }
-
-        if ( $marker and $marker =~ /MULTI/ ) {
+        elsif ( $method->type eq Parrot::Pmc2c::Method::MULTI ) {
             Parrot::Pmc2c::MULTI::rewrite_multi_sub( $method, $pmc );
+        }
+
+        if ( $method->type eq Parrot::Pmc2c::Method::NON_VTABLE
+        ||   $method->type eq Parrot::Pmc2c::Method::MULTI ) {
+            # Name-mangle NCI and multi methods to avoid conflict with vtables
+            Parrot::Pmc2c::PCCMETHOD::mangle_name( $method, $pmc );
         }
 
         # PCCINVOKE needs FixedIntegerArray header
@@ -281,20 +291,6 @@ sub find_methods {
             $class_init = $method;
         }
         else {
-
-            # Name-mangle NCI and multi methods to avoid conflict with vtables
-            if ( $marker) {
-                if ( $marker =~ /MULTI/ ) {
-                    $method->type(Parrot::Pmc2c::Method::MULTI);
-                    $method->symbol($methodname);
-                }
-                elsif ( $marker !~ /VTABLE/ ) {
-                    $method->type(Parrot::Pmc2c::Method::NON_VTABLE);
-                    $method->name("nci_$methodname");
-                    $method->symbol($methodname);
-                }
-            }
-
             $pmc->add_method($method);
         }
 

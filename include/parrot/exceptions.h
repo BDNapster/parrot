@@ -155,7 +155,7 @@ void Parrot_ex_add_c_handler(PARROT_INTERP, ARGIN(Parrot_runloop *jp))
         __attribute__nonnull__(2);
 
 PARROT_EXPORT
-PARROT_CAN_RETURN_NULL
+PARROT_CANNOT_RETURN_NULL
 PMC * Parrot_ex_build_exception(PARROT_INTERP,
     INTVAL severity,
     long error,
@@ -192,7 +192,7 @@ PARROT_EXPORT
 PARROT_DOES_NOT_RETURN
 PARROT_COLD
 void Parrot_ex_throw_from_c_args(PARROT_INTERP,
-    SHIM(void *ret_addr),
+    ARGIN_NULLOK(void *ret_addr),
     int exitcode,
     ARGIN(const char *format),
     ...)
