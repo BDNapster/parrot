@@ -63,7 +63,7 @@ Disable a breakpoint.
 
 =item C<enable>
 
-Reenable a disabled breakpoint.
+Re-enable a disabled breakpoint.
 
 =item C<continue> or C<c>
 
@@ -207,7 +207,7 @@ main(int argc, const char *argv[])
         }
         else {
             STRING          *str    = Parrot_str_new(interp, filename, 0);
-            Parrot_PackFile  pf     = PackFile_new(interp, 0);
+            Parrot_PackFile  pf     = Parrot_pf_get_packfile_pmc(interp, PackFile_new(interp, 0));
 
             Parrot_pbc_load(interp, pf);
             Parrot_compile_file(interp, str, 0);
@@ -227,10 +227,14 @@ main(int argc, const char *argv[])
         STRING *compiler = Parrot_str_new_constant(interp, "PIR");
         STRING *errstr = NULL;
         const char source []= ".sub aux :main\nexit 0\n.end\n";
-        Parrot_compile_string(interp, compiler, source, &errstr);
+        PMC *code = Parrot_compile_string(interp, compiler, source, &errstr);
 
         if (!STRING_IS_NULL(errstr))
             Parrot_io_eprintf(interp, "%Ss\n", errstr);
+        else
+            if (PMC_IS_NULL(code))
+                Parrot_warn(interp, PARROT_WARNINGS_NONE_FLAG,
+                    "Unexpected compiler problem at debugger start");
     }
 
     Parrot_unblock_GC_mark(interp);

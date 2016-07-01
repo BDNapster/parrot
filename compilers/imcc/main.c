@@ -369,7 +369,7 @@ do_pre_process(ARGMOD(imc_info_t *imcc), ARGIN(STRING * sourcefile),
 
     /* TODO: THIS! */
 
-    IMCC_push_parser_state(imcc, sourcefile, 0);
+    IMCC_push_parser_state(imcc, sourcefile, 1, 0);
     c = yylex(&val, yyscanner, imcc); /* is reset at end of while loop */
     while (c) {
         switch (c) {
@@ -552,34 +552,35 @@ imcc_run_compilation_internal(ARGMOD(imc_info_t *imcc), ARGIN(STRING *source),
 {
     ASSERT_ARGS(imcc_run_compilation_internal)
     yyscan_t yyscanner = imcc_get_scanner(imcc);
-    PackFile * const pf_raw = PackFile_new(imcc->interp, 0);
-    INTVAL success = 0;
+    PackFile * const pf_raw      = PackFile_new(imcc->interp, 0);
+    PMC      * const old_packfilepmc = Parrot_pf_get_current_packfile(imcc->interp);
+    PMC      * const packfilepmc     = Parrot_pf_get_packfile_pmc(imcc->interp, pf_raw);
+    INTVAL           success     = 0;
 
     /* TODO: Don't set current packfile in the interpreter. Leave the
              interpreter alone */
 
     if (is_file)
-        pf_raw->cur_cs = Parrot_pf_create_default_segments(imcc->interp, pf_raw, source, 1);
+        pf_raw->cur_cs = Parrot_pf_create_default_segments(imcc->interp, packfilepmc, source, 1);
     else {
         const INTVAL eval_number = eval_nr++;
         STRING * const evalname = Parrot_sprintf_c(imcc->interp, "EVAL_" INTVAL_FMT, eval_number);
-        pf_raw->cur_cs = Parrot_pf_create_default_segments(imcc->interp, pf_raw, evalname, 1);
+        pf_raw->cur_cs = Parrot_pf_create_default_segments(imcc->interp, packfilepmc, evalname, 1);
     }
 
-    Parrot_pf_set_current_packfile(imcc->interp, pf_raw);
+    Parrot_pf_set_current_packfile(imcc->interp, packfilepmc);
 
-    IMCC_push_parser_state(imcc, source, is_pasm);
+    IMCC_push_parser_state(imcc, source, is_file, is_pasm);
 
     success = imcc_compile_buffer_safe(imcc, yyscanner, source, is_file, is_pasm);
 
     if (imcc->error_code) {
-        imcc->error_code = IMCC_FATAL_EXCEPTION;
-        IMCC_warning(imcc, "error:imcc:%Ss", imcc->error_message);
-        /* Don't use this function. use IMCC_get_error_location instead */
-        IMCC_print_inc(imcc);
-
         yylex_destroy(yyscanner);
 
+        /* XXX Parrot_pf_get_packfile_pmc registers PMC */
+        Parrot_pmc_gc_unregister(imcc->interp, packfilepmc);
+        if (!PMC_IS_NULL(old_packfilepmc))
+            Parrot_pf_set_current_packfile(imcc->interp, old_packfilepmc);
         return PMCNULL;
     }
 
@@ -587,15 +588,15 @@ imcc_run_compilation_internal(ARGMOD(imc_info_t *imcc), ARGIN(STRING *source),
     imc_cleanup(imcc, NULL);
 
     IMCC_info(imcc, 1, "%ld lines compiled.\n", imcc->line);
-    {
-        PMC * packfilepmc = NULL;
-        if (success && pf_raw)
-            packfilepmc = Parrot_pf_get_packfile_pmc(imcc->interp, pf_raw);
-        PackFile_fixup_subs(imcc->interp, PBC_IMMEDIATE, packfilepmc);
-        PackFile_fixup_subs(imcc->interp, PBC_POSTCOMP, packfilepmc);
 
-        return packfilepmc ? packfilepmc : NULL;
-    }
+    /* TODO: Do not use this function, it is deprecated (TT #2140). Find a
+       better way to handle :immediate and :postcomp subs instead. */
+    PackFile_fixup_subs(imcc->interp, PBC_IMMEDIATE, packfilepmc);
+    PackFile_fixup_subs(imcc->interp, PBC_POSTCOMP, packfilepmc);
+
+    if (!PMC_IS_NULL(old_packfilepmc))
+        Parrot_pf_set_current_packfile(imcc->interp, old_packfilepmc);
+    return packfilepmc;
 }
 
 /*

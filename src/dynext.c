@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2001-2010, Parrot Foundation.
+Copyright (C) 2001-2011, Parrot Foundation.
 
 =head1 NAME
 
@@ -69,10 +69,11 @@ static PMC* is_loaded(PARROT_INTERP, ARGIN(STRING *path))
 PARROT_CANNOT_RETURN_NULL
 static PMC * run_init_lib(PARROT_INTERP,
     ARGIN(void *handle),
-    ARGIN_NULLOK(STRING *lib_name),
+    ARGIN(STRING *lib_name),
     ARGIN(STRING *wo_ext))
         __attribute__nonnull__(1)
         __attribute__nonnull__(2)
+        __attribute__nonnull__(3)
         __attribute__nonnull__(4);
 
 static void set_cstring_prop(PARROT_INTERP,
@@ -113,6 +114,7 @@ static void store_lib_pmc(PARROT_INTERP,
 #define ASSERT_ARGS_run_init_lib __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
     , PARROT_ASSERT_ARG(handle) \
+    , PARROT_ASSERT_ARG(lib_name) \
     , PARROT_ASSERT_ARG(wo_ext))
 #define ASSERT_ARGS_set_cstring_prop __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(interp) \
@@ -230,7 +232,7 @@ dlopen_string(PARROT_INTERP, Parrot_dlopen_flags flags, ARGIN(const STRING *path
     ASSERT_ARGS(dlopen_string)
 
     char * const pathstr = Parrot_str_to_cstring(interp, path);
-    void *       handle  = Parrot_dlopen(pathstr, flags);
+    void * const handle  = Parrot_dlopen(pathstr, flags);
     Parrot_str_free_cstring(pathstr);
     return handle;
 }
@@ -295,7 +297,7 @@ get_path(PARROT_INTERP, ARGIN_NULLOK(STRING *lib), Parrot_dlopen_flags flags,
                 if (*handle)
                     return path;
                 else {
-                    const char *err = Parrot_dlerror();
+                    const char * const err = Parrot_dlerror();
                     Parrot_warn(interp, PARROT_WARNINGS_DYNEXT_FLAG,
                                 "Couldn't load '%Ss': %s\n",
                             full_name, err ? err : "unknown reason");
@@ -334,19 +336,11 @@ get_path(PARROT_INTERP, ARGIN_NULLOK(STRING *lib), Parrot_dlopen_flags flags,
      * [shouldn't this happen in Parrot_locate_runtime_file instead?]
      */
 #ifdef WIN32
-    if (STRING_length(lib) >= 3 && memcmp(lib->strstart, "lib", 3) == 0) {
-        *handle = Parrot_dlopen((char *)lib->strstart + 3, 0);
-
-        if (*handle)
-            return STRING_substr(interp, lib, 3, lib->strlen - 3);
-    }
-#endif
-
-    /* And on cygwin replace a leading "lib" by "cyg". */
-#ifdef __CYGWIN__
-    if (!STRING_length(lib) >= 3 && memcmp(lib->strstart, "lib", 3) == 0) {
-        path = Parrot_str_concat(interp, CONST_STRING(interp, "cyg"),
-            STRING_substr(interp, lib, 3, lib->strlen - 3));
+    if (STRING_length(lib) >= 3
+    &&  STRING_ord(interp, lib, 0) == 'l'
+    &&  STRING_ord(interp, lib, 1) == 'i'
+    &&  STRING_ord(interp, lib, 2) == 'b') {
+        path = STRING_substr(interp, lib, 3, STRING_length(lib) - 3);
 
         *handle = dlopen_string(interp, flags, path);
 
@@ -355,14 +349,30 @@ get_path(PARROT_INTERP, ARGIN_NULLOK(STRING *lib), Parrot_dlopen_flags flags,
     }
 #endif
 
-    if (!STRING_length(lib)) {
+    /* And on cygwin replace a leading "lib" by "cyg". */
+#ifdef __CYGWIN__
+    if (STRING_length(lib) >= 3
+    &&  STRING_ord(interp, lib, 0) == 'l'
+    &&  STRING_ord(interp, lib, 1) == 'i'
+    &&  STRING_ord(interp, lib, 2) == 'b') {
+        path = Parrot_str_concat(interp, CONST_STRING(interp, "cyg"),
+            STRING_substr(interp, lib, 3, STRING_length(lib) - 3));
+
+        *handle = dlopen_string(interp, flags, path);
+
+        if (*handle)
+            return path;
+    }
+#endif
+
+    if (STRING_length(lib)) {
         *handle = dlopen_string(interp, flags, lib);
         if (*handle)
             return lib;
     }
     /* And after-finally,  let the OS use his own search */
     {
-        const char *err = Parrot_dlerror();
+        const char * const err = Parrot_dlerror();
         Parrot_warn(interp, PARROT_WARNINGS_DYNEXT_FLAG,
                     "Couldn't load '%Ss': %s\n",
                     lib, err ? err : "unknown reason");
@@ -459,8 +469,7 @@ necessary initialization routines, if any.
 
 PARROT_CANNOT_RETURN_NULL
 static PMC *
-run_init_lib(PARROT_INTERP, ARGIN(void *handle),
-        ARGIN_NULLOK(STRING *lib_name), ARGIN(STRING *wo_ext))
+run_init_lib(PARROT_INTERP, ARGIN(void *handle), ARGIN(STRING *lib_name), ARGIN(STRING *wo_ext))
 {
     ASSERT_ARGS(run_init_lib)
     STRING *type;
@@ -470,7 +479,7 @@ run_init_lib(PARROT_INTERP, ARGIN(void *handle),
 
     UINTVAL regs_used[]     = { 2, 2, 2, 2 }; /* Arbitrary values */
     const int parrot_hll_id = 0;
-    PMC * context = Parrot_push_context(interp, regs_used);
+    PMC * const context = Parrot_push_context(interp, regs_used);
     Parrot_pcc_set_HLL(interp, context, parrot_hll_id);
     Parrot_pcc_set_namespace(interp, context,
             Parrot_hll_get_HLL_namespace(interp, parrot_hll_id));

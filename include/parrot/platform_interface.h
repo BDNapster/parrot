@@ -88,6 +88,9 @@ PIOHANDLE Parrot_io_open_pipe(PARROT_INTERP, ARGIN(STRING *command), INTVAL flag
         ARGOUT(INTVAL *pid_out));
 INTVAL Parrot_io_pipe(PARROT_INTERP, ARGMOD(PIOHANDLE *reader), ARGMOD(PIOHANDLE *writer));
 
+PARROT_EXPORT
+INTVAL Parrot_io_async(PARROT_INTERP, ARGMOD(PMC *pmc), INTVAL async);
+
 /*
  * Socket
  */
@@ -398,6 +401,13 @@ UINTVAL Parrot_get_user_id(void);
 
 PARROT_EXPORT
 size_t Parrot_sysmem_amount(Interp*);
+
+/*
+ * Entropy
+ */
+
+PARROT_EXPORT
+INTVAL Parrot_get_entropy(PARROT_INTERP);
 
 #endif /* PARROT_PLATFORM_INTERFACE_H_GUARD */
 

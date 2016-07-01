@@ -411,7 +411,8 @@ typedef enum _AsmState {
     AsmInYield
 } AsmState;
 
-void IMCC_push_parser_state(imc_info_t *info, STRING *filename, int is_pasm);
+void IMCC_push_parser_state(imc_info_t *info, STRING *filename, int is_file,
+        int is_pasm);
 void IMCC_pop_parser_state(imc_info_t *info, void *yyscanner);
 
 /* globals store the state between individual e_pbc_emit calls */
@@ -456,7 +457,6 @@ struct _imc_info_t {
     STRING                *error_message;   /* The Error message */
 
     /* some values that were global... */
-    Namespace            *namespace_stack;
     SymReg               *cur_call;
     SymReg               *cur_obj;
     SymReg               *adv_named_id;

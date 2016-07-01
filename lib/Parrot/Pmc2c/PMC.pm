@@ -1,5 +1,4 @@
 # Copyright (C) 2004-2011, Parrot Foundation.
-#
 
 =head1 NAME
 
@@ -25,7 +24,7 @@ use warnings;
 use base qw( Exporter );
 our @EXPORT_OK = qw();
 use Storable ();
-use Parrot::PMC;
+use Parrot::PMC ();
 use Parrot::Pmc2c::Emitter ();
 use Parrot::Pmc2c::Method ();
 use Parrot::Pmc2c::UtilFunctions qw(
@@ -34,9 +33,6 @@ use Parrot::Pmc2c::UtilFunctions qw(
     c_code_coda
     gen_multi_name
 );
-use Text::Balanced 'extract_bracketed';
-use Parrot::Pmc2c::PCCMETHOD ();
-use Parrot::Pmc2c::MULTI ();
 use Parrot::Pmc2c::PMC::RO ();
 
 sub create {
@@ -75,7 +71,7 @@ sub dump {
     # gen_parent_lookup_info( $self, $pmc2cMain, $pmcs );
     # gen_parent_reverse_lookup_info( $self, $pmcs, $vtable_dump );
 
-    Storable::store( $self, $self->filename('.dump') );
+    Storable::nstore( $self, $self->filename('.dump') );
 }
 
 # methods
@@ -578,8 +574,8 @@ EOH
     }
     $h->emit("${export}VTABLE* Parrot_${name}_get_vtable(PARROT_INTERP);\n");
     $h->emit("${export}VTABLE* Parrot_${name}_ro_get_vtable(PARROT_INTERP);\n");
-    $h->emit("${export}PMC*    Parrot_${name}_get_mro(PARROT_INTERP, ARGIN_NULLOK(PMC* mro));\n");
-    $h->emit("${export}Hash*   Parrot_${name}_get_isa(PARROT_INTERP, ARGIN_NULLOK(Hash* isa));\n");
+    $h->emit("${export}PMC*    Parrot_${name}_get_mro(PARROT_INTERP, ARGMOD(PMC* mro));\n");
+    $h->emit("${export}Hash*   Parrot_${name}_get_isa(PARROT_INTERP, ARGMOD_NULLOK(Hash* isa));\n");
 
 
     $self->gen_attributes;
@@ -791,15 +787,7 @@ sub post_method_gen {
 
         # pcc return
         $body .= <<EOC if $need_result;
-{
-    /*
-     * Use the result of Parrot_pcc_build_call_from_c_args because it is marked
-     * PARROT_WARN_UNUSED_RESULT. Then explicitly don't use the result.
-     * This apparently makes sense.
-     */
-    PMC *unused = Parrot_pcc_build_call_from_c_args(interp, _call_obj, "$pcc_ret", _result);
-    UNUSED(unused);
-}
+    Parrot_pcc_set_call_from_c_args(interp, _call_obj, "$pcc_ret", _result);
 EOC
 
         $new_method->body(Parrot::Pmc2c::Emitter->text($body));
@@ -939,7 +927,7 @@ sub vtable_decl {
     my $methlist = join( ",\n        ", @vt_methods );
 
     my $cout = <<ENDOFCODE;
-    const VTABLE $temp_struct_name = {
+    static const VTABLE $temp_struct_name = {
         NULL,       /* namespace */
         $enum_name, /* base_type */
         NULL,       /* whoami */
@@ -1187,8 +1175,8 @@ EOC
 
         $cout .= <<"EOC";
         {
-            STRING *method_name = CONST_STRING_GEN(interp, "$symbol_name");
-            STRING *signature   = CONST_STRING_GEN(interp, "$pcc_signature");
+            STRING * const method_name = CONST_STRING_GEN(interp, "$symbol_name");
+            STRING * const signature   = CONST_STRING_GEN(interp, "$pcc_signature");
             register_native_pcc_method_in_ns(interp, entry,
                 F2DPTR(Parrot_${classname}_${method_name}),
                 method_name, signature);
@@ -1351,14 +1339,12 @@ sub get_mro_func {
 $export
 PARROT_CANNOT_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
-PMC* Parrot_${classname}_get_mro(PARROT_INTERP, ARGIN_NULLOK(PMC* mro)) {
+PMC* Parrot_${classname}_get_mro(PARROT_INTERP, ARGMOD(PMC* mro)) {
     if (PMC_IS_NULL(mro)) {
         mro = Parrot_pmc_new(interp, enum_class_ResizableStringArray);
     }
 $get_mro
-    VTABLE_unshift_string(interp, mro,
-        Parrot_str_new_init(interp, "$classname", @{[length($classname)]},
-            Parrot_default_encoding_ptr, 0));
+    VTABLE_unshift_string(interp, mro, CONST_STRING_GEN(interp, "$classname"));
     return mro;
 }
 
@@ -1480,8 +1466,8 @@ $export
 PARROT_CANNOT_RETURN_NULL
 PARROT_WARN_UNUSED_RESULT
 VTABLE* Parrot_${classname}_get_vtable_pointer(PARROT_INTERP) {
-    STRING *type_name = Parrot_str_new_constant(interp, "${classname}");
-    INTVAL  type_num  = Parrot_pmc_get_type_str(interp, type_name);
+    STRING * const type_name = Parrot_str_new_constant(interp, "${classname}");
+    const INTVAL type_num  = Parrot_pmc_get_type_str(interp, type_name);
     return interp->vtables[type_num];
 }
 

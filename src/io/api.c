@@ -71,7 +71,7 @@ C<a> for append, and C<p> for pipe) and returns the combined generic bit flags.
 PARROT_EXPORT
 PARROT_WARN_UNUSED_RESULT
 INTVAL
-Parrot_io_parse_open_flags(PARROT_INTERP, ARGIN_NULLOK(const STRING *mode_str))
+Parrot_io_parse_open_flags(PARROT_INTERP, ARGIN(const STRING *mode_str))
 {
     ASSERT_ARGS(Parrot_io_parse_open_flags)
     INTVAL i, mode_len;
@@ -158,8 +158,7 @@ PARROT_EXPORT
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
 PMC *
-Parrot_io_open_handle(PARROT_INTERP, ARGIN_NULLOK(PMC *pmc),
-        ARGIN_NULLOK(STRING *path), ARGIN_NULLOK(STRING *mode))
+Parrot_io_open_handle(PARROT_INTERP, ARGIN(PMC *pmc), ARGIN(STRING *path), ARGIN(STRING *mode))
 {
     ASSERT_ARGS(Parrot_io_open_handle)
     PMC *filehandle;
@@ -253,10 +252,9 @@ OS IO handles (0, 1, 2).
 
 PARROT_EXPORT
 PARROT_WARN_UNUSED_RESULT
-PARROT_CAN_RETURN_NULL
+PARROT_CANNOT_RETURN_NULL
 PMC *
-Parrot_io_fdopen(PARROT_INTERP, ARGIN_NULLOK(PMC *pmc), PIOHANDLE fd,
-        ARGIN(STRING *sflags))
+Parrot_io_fdopen(PARROT_INTERP, ARGIN(PMC *pmc), PIOHANDLE fd, ARGIN(STRING *sflags))
 {
     ASSERT_ARGS(Parrot_io_fdopen)
     PMC *new_filehandle;
@@ -295,8 +293,7 @@ PARROT_EXPORT
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
 PMC *
-Parrot_io_fdopen_flags(PARROT_INTERP, ARGMOD_NULLOK(PMC *filehandle),
-        PIOHANDLE fd, INTVAL flags)
+Parrot_io_fdopen_flags(PARROT_INTERP, ARGMOD(PMC *filehandle), PIOHANDLE fd, INTVAL flags)
 {
     ASSERT_ARGS(Parrot_io_fdopen_flags)
 
@@ -334,7 +331,7 @@ filehandle-PMC object.
 
 PARROT_EXPORT
 INTVAL
-Parrot_io_close_handle(PARROT_INTERP, ARGMOD_NULLOK(PMC *pmc))
+Parrot_io_close_handle(PARROT_INTERP, ARGMOD(PMC *pmc))
 {
     ASSERT_ARGS(Parrot_io_close_handle)
     INTVAL result = 1;
@@ -409,7 +406,7 @@ filehandle PMC.
 
 PARROT_EXPORT
 void
-Parrot_io_flush_handle(PARROT_INTERP, ARGMOD_NULLOK(PMC *pmc))
+Parrot_io_flush_handle(PARROT_INTERP, ARGMOD(PMC *pmc))
 {
     ASSERT_ARGS(Parrot_io_flush_handle)
     if (PMC_IS_NULL(pmc))
@@ -828,7 +825,7 @@ on the filehandle PMC.
 
 PARROT_EXPORT
 INTVAL
-Parrot_io_putps(PARROT_INTERP, ARGMOD(PMC *pmc), ARGMOD_NULLOK(STRING *s))
+Parrot_io_putps(PARROT_INTERP, ARGMOD(PMC *pmc), ARGMOD(STRING *s))
 {
     ASSERT_ARGS(Parrot_io_putps)
     INTVAL result;
@@ -1046,6 +1043,28 @@ Parrot_io_is_tty_handle(PARROT_INTERP, ARGIN(PMC *pmc))
         return 0;
 
     return (Parrot_io_get_flags(interp, pmc) & PIO_F_CONSOLE) ? 1 : 0;
+}
+
+/*
+
+=item C<INTVAL Parrot_io_is_async(PARROT_INTERP, PMC *pmc)>
+
+Returns a boolean value indicating whether C<*pmc> is a non-blocking
+
+=cut
+
+*/
+
+PARROT_EXPORT
+PARROT_WARN_UNUSED_RESULT
+INTVAL
+Parrot_io_is_async(PARROT_INTERP, ARGMOD(PMC *pmc))
+{
+    ASSERT_ARGS(Parrot_io_is_async)
+    if (Parrot_io_is_closed(interp, pmc))
+        return 0;
+
+    return (Parrot_io_get_flags(interp, pmc) & PIO_F_ASYNC) ? 1 : 0;
 }
 
 /*

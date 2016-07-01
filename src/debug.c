@@ -32,6 +32,7 @@ the Parrot debugger, and the C<debug> ops.
 #include "debug.str"
 #include "pmc/pmc_continuation.h"
 #include "pmc/pmc_callcontext.h"
+#include "pmc/pmc_sub.h"
 #include "parrot/oplib/core_ops.h"
 
 /* Hand switched debugger tracing
@@ -74,8 +75,9 @@ static void close_script_file(PARROT_INTERP)
 static unsigned short condition_regtype(ARGIN(const char *cmd))
         __attribute__nonnull__(1);
 
+PARROT_WARN_UNUSED_RESULT
 PARROT_CAN_RETURN_NULL
-static PDB_breakpoint_t * current_breakpoint(ARGIN(PDB_t * pdb))
+static PDB_breakpoint_t * current_breakpoint(ARGIN(const PDB_t *pdb))
         __attribute__nonnull__(1);
 
 static void dbg_assign(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
@@ -91,6 +93,14 @@ static void dbg_continue(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
         __attribute__nonnull__(2);
 
 static void dbg_delete(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
+        __attribute__nonnull__(1)
+        __attribute__nonnull__(2);
+
+static void dbg_disable(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
+        __attribute__nonnull__(1)
+        __attribute__nonnull__(2);
+
+static void dbg_disassemble(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
         __attribute__nonnull__(1)
         __attribute__nonnull__(2);
 
@@ -166,7 +176,7 @@ static void debugger_cmdline(PARROT_INTERP)
         __attribute__nonnull__(1);
 
 static void display_breakpoint(
-    ARGIN(PDB_t *pdb),
+    ARGIN(const PDB_t *pdb),
     ARGIN(const PDB_breakpoint_t *breakpoint))
         __attribute__nonnull__(1)
         __attribute__nonnull__(2);
@@ -189,7 +199,7 @@ PARROT_CAN_RETURN_NULL
 static const DebuggerCmd * get_cmd(ARGIN_NULLOK(const char **cmd));
 
 PARROT_WARN_UNUSED_RESULT
-PARROT_CAN_RETURN_NULL
+PARROT_CANNOT_RETURN_NULL
 static PMC * get_exception_context(PARROT_INTERP, ARGMOD(PMC * exception))
         __attribute__nonnull__(1)
         __attribute__nonnull__(2)
@@ -205,7 +215,7 @@ static unsigned long get_ulong(ARGMOD(const char **cmd), unsigned long def)
         __attribute__nonnull__(1)
         FUNC_MODIFIES(*cmd);
 
-static void list_breakpoints(ARGIN(PDB_t *pdb))
+static void list_breakpoints(ARGIN(const PDB_t *pdb))
         __attribute__nonnull__(1);
 
 static void no_such_register(PARROT_INTERP,
@@ -220,12 +230,9 @@ static int nomoreargs(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
 static STRING * PDB_get_continuation_backtrace(PARROT_INTERP,
-    ARGMOD_NULLOK(PMC * sub),
-    ARGMOD(PMC * ctx))
+    ARGIN(PMC *ctx))
         __attribute__nonnull__(1)
-        __attribute__nonnull__(3)
-        FUNC_MODIFIES(* sub)
-        FUNC_MODIFIES(* ctx);
+        __attribute__nonnull__(2);
 
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
@@ -251,6 +258,12 @@ static const char * skip_whitespace(ARGIN(const char *cmd))
        PARROT_ASSERT_ARG(pdb) \
     , PARROT_ASSERT_ARG(cmd))
 #define ASSERT_ARGS_dbg_delete __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(pdb) \
+    , PARROT_ASSERT_ARG(cmd))
+#define ASSERT_ARGS_dbg_disable __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
+       PARROT_ASSERT_ARG(pdb) \
+    , PARROT_ASSERT_ARG(cmd))
+#define ASSERT_ARGS_dbg_disassemble __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
        PARROT_ASSERT_ARG(pdb) \
     , PARROT_ASSERT_ARG(cmd))
 #define ASSERT_ARGS_dbg_echo __attribute__unused__ int _ASSERT_ARGS_CHECK = (\
@@ -354,6 +367,10 @@ static const char * skip_whitespace(ARGIN(const char *cmd))
 
 =item C<static void dbg_delete(PDB_t *pdb, const char *cmd)>
 
+=item C<static void dbg_disable(PDB_t *pdb, const char *cmd)>
+
+=item C<static void dbg_disassemble(PDB_t *pdb, const char *cmd)>
+
 =item C<static void dbg_echo(PDB_t *pdb, const char *cmd)>
 
 =item C<static void dbg_enable(PDB_t *pdb, const char *cmd)>
@@ -451,16 +468,20 @@ dbg_delete(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
 }
 
 static void
-dbg_disable(ARGIN(PDB_t *pdb), ARGIN(const char *cmd)) /* HEADERIZER SKIP */
+dbg_disable(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
 {
+    ASSERT_ARGS(dbg_disable)
+
     TRACEDEB_MSG("dbg_disable");
 
     PDB_disable_breakpoint(pdb->debugee, cmd);
 }
 
 static void
-dbg_disassemble(ARGIN(PDB_t *pdb), ARGIN(const char *cmd)) /* HEADERIZER SKIP */
+dbg_disassemble(ARGIN(PDB_t *pdb), ARGIN(const char *cmd))
 {
+    ASSERT_ARGS(dbg_disassemble)
+
     TRACEDEB_MSG("dbg_disassemble");
 
     PDB_disassemble(pdb->debugee, cmd);
@@ -731,7 +752,7 @@ In echo mode the script commands are written to stderr before executing."
     },
     cmd_enable = {
         & dbg_enable,
-        "reenable a disabled breakpoint",
+        "re-enable a disabled breakpoint",
 "Re-enable a disabled breakpoint."
     },
     cmd_eval = {
@@ -1787,8 +1808,7 @@ PDB_set_break(PARROT_INTERP, ARGIN_NULLOK(const char *command))
 {
     ASSERT_ARGS(PDB_set_break)
     PDB_t            * const pdb      = interp->pdb;
-    PDB_breakpoint_t *newbreak,
-                     *oldbreak;
+    PDB_breakpoint_t *newbreak;
     PDB_line_t       *line = NULL;
     opcode_t         *breakpos = NULL;
 
@@ -1883,6 +1903,8 @@ PDB_set_break(PARROT_INTERP, ARGIN_NULLOK(const char *command))
         pdb->breakpoint = newbreak;
     }
     else {
+        PDB_breakpoint_t *oldbreak;
+
         for (oldbreak = pdb->breakpoint; oldbreak->next; oldbreak = oldbreak->next)
             ;
         newbreak->id = oldbreak->id + 1;
@@ -1897,7 +1919,7 @@ PDB_set_break(PARROT_INTERP, ARGIN_NULLOK(const char *command))
 
 /*
 
-=item C<static void list_breakpoints(PDB_t *pdb)>
+=item C<static void list_breakpoints(const PDB_t *pdb)>
 
 Print all breakpoints for this debugger session to C<pdb->debugger>.
 
@@ -1906,18 +1928,18 @@ Print all breakpoints for this debugger session to C<pdb->debugger>.
 */
 
 static void
-list_breakpoints(ARGIN(PDB_t *pdb))
+list_breakpoints(ARGIN(const PDB_t *pdb))
 {
     ASSERT_ARGS(list_breakpoints)
 
-    PDB_breakpoint_t *breakpoint;
+    if (pdb->breakpoint) {
+        const PDB_breakpoint_t *breakpoint;
 
-    if (pdb->breakpoint)
         for (breakpoint = pdb->breakpoint;
              breakpoint;
              breakpoint = breakpoint->next)
             display_breakpoint(pdb, breakpoint);
-
+    }
     else
         Parrot_io_eprintf(pdb->debugger, "No breakpoints set\n");
 }
@@ -1933,7 +1955,7 @@ Init the program.
 */
 
 void
-PDB_init(PARROT_INTERP, SHIM(const char *command))
+PDB_init(PARROT_INTERP, ARGIN_NULLOK(SHIM(const char *command)))
 {
     ASSERT_ARGS(PDB_init)
     PDB_t * const pdb = interp->pdb;
@@ -2002,8 +2024,9 @@ PDB_breakpoint_t *
 PDB_find_breakpoint(PARROT_INTERP, ARGIN(const char *command))
 {
     ASSERT_ARGS(PDB_find_breakpoint)
-    const char *oldcmd = command;
+    const char * const oldcmd = command;
     const unsigned long n = get_ulong(&command, 0);
+
     if (command != oldcmd) {
         PDB_breakpoint_t *breakpoint = interp->pdb->breakpoint;
 
@@ -2323,7 +2346,7 @@ PDB_check_condition(PARROT_INTERP, ARGIN(const PDB_condition_t *condition))
 
 /*
 
-=item C<static PDB_breakpoint_t * current_breakpoint(PDB_t * pdb)>
+=item C<static PDB_breakpoint_t * current_breakpoint(const PDB_t *pdb)>
 
 Returns a pointer to the breakpoint at the current position,
 or NULL if there is none.
@@ -2332,9 +2355,10 @@ or NULL if there is none.
 
 */
 
+PARROT_WARN_UNUSED_RESULT
 PARROT_CAN_RETURN_NULL
 static PDB_breakpoint_t *
-current_breakpoint(ARGIN(PDB_t * pdb))
+current_breakpoint(ARGIN(const PDB_t *pdb))
 {
     ASSERT_ARGS(current_breakpoint)
     PDB_breakpoint_t *breakpoint = pdb->breakpoint;
@@ -2868,20 +2892,20 @@ Disassemble the bytecode.
 */
 
 void
-PDB_disassemble(PARROT_INTERP, SHIM(const char *command))
+PDB_disassemble(PARROT_INTERP, ARGIN_NULLOK(SHIM(const char *command)))
 {
     ASSERT_ARGS(PDB_disassemble)
     PDB_t    * const pdb = interp->pdb;
     opcode_t * pc        = interp->code->base.data;
 
     PDB_file_t  *pfile;
-    PDB_line_t  *pline, *newline;
+    PDB_line_t  *pline;
     PDB_label_t *label;
     opcode_t    *code_end;
 
     const unsigned int default_size = 32768;
     size_t space;  /* How much space do we have? */
-    size_t size, alloced, n;
+    size_t alloced, n;
 
     TRACEDEB_MSG("PDB_disassemble");
 
@@ -2902,6 +2926,8 @@ PDB_disassemble(PARROT_INTERP, SHIM(const char *command))
     code_end      = pc + interp->code->base.size;
 
     while (pc != code_end) {
+        size_t size;
+
         /* Grow it early */
         if (space < default_size) {
             alloced += default_size;
@@ -2925,7 +2951,8 @@ PDB_disassemble(PARROT_INTERP, SHIM(const char *command))
         /* Prepare for next line unless there will be no next line. */
 
         if (pc < code_end) {
-            newline              = mem_gc_allocate_zeroed_typed(interp, PDB_line_t);
+            PDB_line_t * const newline = mem_gc_allocate_zeroed_typed(interp, PDB_line_t);
+
             newline->label       = NULL;
             newline->next        = NULL;
             newline->number      = pline->number + 1;
@@ -3543,7 +3570,7 @@ Returns an string containing the backtrace of the interpreter's call chain for a
 
 
 PARROT_WARN_UNUSED_RESULT
-PARROT_CAN_RETURN_NULL
+PARROT_CANNOT_RETURN_NULL
 STRING *
 Parrot_dbg_get_exception_backtrace(PARROT_INTERP, ARGMOD(PMC * exception))
 {
@@ -3554,9 +3581,7 @@ Parrot_dbg_get_exception_backtrace(PARROT_INTERP, ARGMOD(PMC * exception))
     if (PMC_IS_NULL(ctx))
         return STRINGNULL;
     else {
-        const Parrot_CallContext_attributes * const cattrs = PARROT_CALLCONTEXT(ctx);
-        PMC * const sub = cattrs->current_sub;
-        STRING * const bt = PDB_get_continuation_backtrace(interp, sub, ctx);
+        STRING * const bt = PDB_get_continuation_backtrace(interp, ctx);
         return bt;
     }
 }
@@ -3572,7 +3597,7 @@ Returns the context in which the exception was generated.
 */
 
 PARROT_WARN_UNUSED_RESULT
-PARROT_CAN_RETURN_NULL
+PARROT_CANNOT_RETURN_NULL
 static PMC *
 get_exception_context(PARROT_INTERP, ARGMOD(PMC * exception))
 {
@@ -3607,19 +3632,15 @@ PDB_backtrace(PARROT_INTERP)
 {
     ASSERT_ARGS(PDB_backtrace)
     /* information about the current sub */
-    PMC *sub = interpinfo_p(interp, CURRENT_SUB);
-    PMC *ctx = CURRENT_CONTEXT(interp);
-    STRING * const bt = PDB_get_continuation_backtrace(interp, sub, ctx);
+    STRING * const bt = PDB_get_continuation_backtrace(interp, CURRENT_CONTEXT(interp));
     Parrot_io_eprintf(interp, "%Ss", bt);
 }
 
 /*
 
-=item C<static STRING * PDB_get_continuation_backtrace(PARROT_INTERP, PMC * sub,
-PMC * ctx)>
+=item C<static STRING * PDB_get_continuation_backtrace(PARROT_INTERP, PMC *ctx)>
 
-Returns an string with the backtrace of interpreter's call chain for the given sub including
-context information.
+Returns an string with the backtrace of interpreter's call chain for the given context information.
 
 =cut
 
@@ -3628,77 +3649,31 @@ context information.
 PARROT_WARN_UNUSED_RESULT
 PARROT_CANNOT_RETURN_NULL
 static STRING *
-PDB_get_continuation_backtrace(PARROT_INTERP, ARGMOD_NULLOK(PMC * sub), ARGMOD(PMC * ctx))
+PDB_get_continuation_backtrace(PARROT_INTERP, ARGIN(PMC *ctx))
 {
     ASSERT_ARGS(PDB_get_continuation_backtrace)
-    STRING *str;
-    PMC    *old         = PMCNULL;
-    PMC    *output      = Parrot_pmc_new(interp, enum_class_StringBuilder);
-    int     rec_level   = 0;
-    int     limit_count = 0;
-
-    if (!PMC_IS_NULL(sub)) {
-        str = Parrot_sub_Context_infostr(interp, ctx);
-        if (str) {
-            VTABLE_push_string(interp, output, str);
-            if (interp->code->annotations) {
-                PMC *annot = PackFile_Annotations_lookup(interp, interp->code->annotations,
-                        Parrot_pcc_get_pc(interp, ctx) - interp->code->base.data + 1, NULL);
-                if (!PMC_IS_NULL(annot)) {
-                    PMC *pfile = VTABLE_get_pmc_keyed_str(interp, annot,
-                            Parrot_str_new_constant(interp, "file"));
-                    PMC *pline = VTABLE_get_pmc_keyed_str(interp, annot,
-                            Parrot_str_new_constant(interp, "line"));
-                    if ((!PMC_IS_NULL(pfile)) && (!PMC_IS_NULL(pline))) {
-                        STRING * const file = VTABLE_get_string(interp, pfile);
-                        INTVAL line = VTABLE_get_integer(interp, pline);
-                        STRING * const fmt =
-                            Parrot_sprintf_c(interp, " (%Ss:%li)", file, (long)line);
-                        VTABLE_push_string(interp, output, fmt);
-                    }
-                }
-            }
-            VTABLE_push_string(interp, output, CONST_STRING(interp, "\n"));
-        }
-    }
+    PMC    *output     = Parrot_pmc_new(interp, enum_class_StringBuilder);
+    int     rec_level  = 0;
+    int     is_top;
+    int     loop_count;
+    PMC    *prev_ctx;
 
     /* backtrace: follow the continuation chain */
-    while (1) {
-        Parrot_Continuation_attributes *sub_cont;
-
-        /* Limit the levels dumped, no segfault on infinite recursion */
-        if (++limit_count > RECURSION_LIMIT)
+    for (prev_ctx = PMCNULL, loop_count = 0, is_top = 1;
+        ctx && loop_count < RECURSION_LIMIT;
+        loop_count++, is_top = 0, prev_ctx = ctx, ctx = Parrot_pcc_get_caller_ctx(interp, ctx)) {
+        STRING *info_str = Parrot_sub_Context_infostr(interp, ctx, is_top);
+        if (!info_str)
             break;
-
-        sub = Parrot_pcc_get_continuation(interp, ctx);
-
-        if (PMC_IS_NULL(sub))
-            break;
-
-
-        sub_cont = PARROT_CONTINUATION(sub);
-
-        if (!sub_cont)
-            break;
-
-
-        str = Parrot_sub_Context_infostr(interp, Parrot_pcc_get_caller_ctx(interp, ctx));
-
-
-        if (!str)
-            break;
-
 
         /* recursion detection */
-        if (ctx == sub_cont->to_ctx) {
+        if (ctx == prev_ctx) {
             ++rec_level;
         }
-        else if (!PMC_IS_NULL(old) && PMC_cont(old) &&
-            Parrot_pcc_get_pc(interp, PMC_cont(old)->to_ctx) ==
-            Parrot_pcc_get_pc(interp, PMC_cont(sub)->to_ctx) &&
-            Parrot_pcc_get_sub(interp, PMC_cont(old)->to_ctx) ==
-            Parrot_pcc_get_sub(interp, PMC_cont(sub)->to_ctx)) {
-                ++rec_level;
+        else if (!PMC_IS_NULL(prev_ctx)
+        &&       Parrot_pcc_get_pc(interp,  ctx) == Parrot_pcc_get_pc(interp,  prev_ctx)
+        &&       Parrot_pcc_get_sub(interp, ctx) == Parrot_pcc_get_sub(interp, prev_ctx)) {
+            ++rec_level;
         }
         else if (rec_level != 0) {
             STRING * const fmt =
@@ -3709,11 +3684,12 @@ PDB_get_continuation_backtrace(PARROT_INTERP, ARGMOD_NULLOK(PMC * sub), ARGMOD(P
 
         /* print the context description */
         if (rec_level == 0) {
-            PackFile_ByteCode *seg = sub_cont->seg;
-            VTABLE_push_string(interp, output, str);
+            PMC               *sub = Parrot_pcc_get_sub(interp, ctx);
+            PackFile_ByteCode *seg = PARROT_SUB(sub)->seg;
+            VTABLE_push_string(interp, output, info_str);
             if (seg->annotations) {
                 PMC *annot = PackFile_Annotations_lookup(interp, seg->annotations,
-                        Parrot_pcc_get_pc(interp, sub_cont->to_ctx) - seg->base.data,
+                        Parrot_pcc_get_pc(interp, ctx) - seg->base.data,
                         NULL);
 
                 if (!PMC_IS_NULL(annot)) {
@@ -3732,13 +3708,6 @@ PDB_get_continuation_backtrace(PARROT_INTERP, ARGMOD_NULLOK(PMC * sub), ARGMOD(P
             }
             VTABLE_push_string(interp, output, CONST_STRING(interp, "\n"));
         }
-
-        /* get the next Continuation */
-        ctx = Parrot_pcc_get_caller_ctx(interp, ctx);
-        old = sub;
-
-        if (!ctx)
-            break;
     }
 
     if (rec_level != 0) {
@@ -3867,7 +3836,7 @@ GDB_P(PARROT_INTERP, ARGIN(const char *s))
 
 /*
 
-=item C<static void display_breakpoint(PDB_t *pdb, const PDB_breakpoint_t
+=item C<static void display_breakpoint(const PDB_t *pdb, const PDB_breakpoint_t
 *breakpoint)>
 
 Displays a breakpoint.
@@ -3877,7 +3846,7 @@ Displays a breakpoint.
 */
 
 static void
-display_breakpoint(ARGIN(PDB_t *pdb), ARGIN(const PDB_breakpoint_t *breakpoint))
+display_breakpoint(ARGIN(const PDB_t *pdb), ARGIN(const PDB_breakpoint_t *breakpoint))
 {
     ASSERT_ARGS(display_breakpoint)
 
